@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "routemates-client",
+      "runtimeExecutable": "/Users/masonmcafee/.local/node/bin/npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "/Users/masonmcafee/Downloads/Claude/routemates/client",
+      "port": 5173
+    },
+    {
+      "name": "routemates-server",
+      "runtimeExecutable": "/Users/masonmcafee/.local/node/bin/node",
+      "runtimeArgs": ["index.js"],
+      "cwd": "/Users/masonmcafee/Downloads/Claude/routemates/server",
+      "port": 3001
+    }
+  ]
+}
