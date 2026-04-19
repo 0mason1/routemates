@@ -12,7 +12,13 @@ app.use('/api/friends', require('./routes/friends'));
 app.use('/api/trips', require('./routes/trips'));
 app.use('/api/pings', require('./routes/pings'));
 
-app.get('/api/health', (_, res) => res.json({ ok: true }));
+app.get('/api/health', (_, res) => res.json({ ok: true, jwt: !!process.env.JWT_SECRET }));
+
+// JSON error handler — must be before static serving
+app.use((err, req, res, next) => {
+  console.error(err);
+  res.status(500).json({ error: err.message });
+});
 
 // Serve the React build in production
 const clientDist = path.join(__dirname, '../client/dist');
