@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: routemates
+    runtime: node
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
