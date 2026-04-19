@@ -1,20 +1,31 @@
-export const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN || '';
-
+// Nominatim (OpenStreetMap) geocoding — free, no key needed
 export async function geocode(query) {
-  if (!MAPBOX_TOKEN) return null;
-  const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(query)}.json?access_token=${MAPBOX_TOKEN}&types=place,address&limit=5`;
-  const res = await fetch(url);
-  const data = await res.json();
-  return data.features || [];
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=5&addressdetails=1`;
+    const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+    const data = await res.json();
+    return data.map(f => ({
+      id: f.place_id,
+      place_name: f.display_name,
+      center: [parseFloat(f.lon), parseFloat(f.lat)],
+    }));
+  } catch {
+    return [];
+  }
 }
 
+// OSRM (OpenStreetMap Routing Machine) — free, no key needed
 export async function getRoute(startLng, startLat, endLng, endLat) {
-  if (!MAPBOX_TOKEN) return null;
-  const url = `https://api.mapbox.com/directions/v5/mapbox/driving/${startLng},${startLat};${endLng},${endLat}?geometries=geojson&overview=full&access_token=${MAPBOX_TOKEN}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  if (data.routes && data.routes.length > 0) {
-    return data.routes[0].geometry.coordinates;
-  }
-  return null;
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.routes && data.routes.length > 0) {
+      return data.routes[0].geometry.coordinates;
+    }
+  } catch {}
+  // Fallback: straight line
+  return [[startLng, startLat], [endLng, endLat]];
 }
+
+export const MAPBOX_TOKEN = '';

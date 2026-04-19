@@ -1,143 +1,97 @@
-import { useEffect, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import { MAPBOX_TOKEN } from '../lib/mapbox';
-import { api } from '../lib/api';
+import { useEffect, useRef } from 'react';
+import L from 'leaflet';
 
-mapboxgl.accessToken = MAPBOX_TOKEN;
+// Fix Leaflet default marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
 
-export default function RouteMap({ trip, routeCoords, nearbyFriends, onPing, sentPings }) {
+export default function RouteMap({ routeCoords, nearbyFriends, onPing, sentPings }) {
   const mapRef = useRef(null);
   const mapInstance = useRef(null);
-  const markersRef = useRef([]);
-  const popupRef = useRef(null);
-  const [mapError, setMapError] = useState(false);
+  const layersRef = useRef([]);
 
+  // Init map once
   useEffect(() => {
-    if (!MAPBOX_TOKEN) { setMapError(true); return; }
-    if (!mapRef.current) return;
+    if (!mapRef.current || mapInstance.current) return;
 
-    const map = new mapboxgl.Map({
-      container: mapRef.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
-      zoom: 5,
-      center: routeCoords?.length
-        ? [
-            (routeCoords[0][0] + routeCoords[routeCoords.length - 1][0]) / 2,
-            (routeCoords[0][1] + routeCoords[routeCoords.length - 1][1]) / 2,
-          ]
-        : [-98.5795, 39.8283],
-    });
+    const map = L.map(mapRef.current, { zoomControl: true }).setView([39.5, -98.35], 4);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+      maxZoom: 19,
+    }).addTo(map);
 
     mapInstance.current = map;
-
-    map.on('load', () => {
-      if (routeCoords && routeCoords.length >= 2) {
-        map.addSource('route', {
-          type: 'geojson',
-          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: routeCoords } },
-        });
-        map.addLayer({
-          id: 'route-line',
-          type: 'line',
-          source: 'route',
-          layout: { 'line-join': 'round', 'line-cap': 'round' },
-          paint: { 'line-color': '#F97316', 'line-width': 4, 'line-opacity': 0.9 },
-        });
-
-        // Start marker
-        new mapboxgl.Marker({ color: '#F97316' })
-          .setLngLat(routeCoords[0])
-          .addTo(map);
-        // End marker
-        new mapboxgl.Marker({ color: '#C2410C' })
-          .setLngLat(routeCoords[routeCoords.length - 1])
-          .addTo(map);
-
-        const bounds = routeCoords.reduce(
-          (b, c) => b.extend(c),
-          new mapboxgl.LngLatBounds(routeCoords[0], routeCoords[0])
-        );
-        map.fitBounds(bounds, { padding: 60 });
-      }
-    });
-
-    return () => map.remove();
+    return () => { map.remove(); mapInstance.current = null; };
   }, []);
 
-  // Update friend pins when nearby friends change
+  // Draw route + friend pins whenever data changes
   useEffect(() => {
     const map = mapInstance.current;
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
+    // Remove old layers
+    layersRef.current.forEach(l => map.removeLayer(l));
+    layersRef.current = [];
 
-    if (!nearbyFriends) return;
+    const bounds = [];
 
-    nearbyFriends.forEach(friend => {
-      const el = document.createElement('div');
-      el.style.cssText = `
-        background: white;
-        border: 2.5px solid #F97316;
-        border-radius: 99px;
-        padding: 4px 10px;
-        font-size: 12px;
-        font-weight: 700;
-        color: #1F2937;
-        white-space: nowrap;
-        cursor: pointer;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-      `;
-      el.textContent = friend.name;
+    if (routeCoords && routeCoords.length >= 2) {
+      const latlngs = routeCoords.map(([lng, lat]) => [lat, lng]);
 
-      const alreadyPinged = sentPings?.some(p => p.recipient_id === friend.id || p.recipient_name === friend.name);
+      const line = L.polyline(latlngs, { color: '#F97316', weight: 5, opacity: 0.85 }).addTo(map);
+      layersRef.current.push(line);
+      bounds.push(...latlngs);
 
-      const popupHTML = `
-        <div style="font-family: -apple-system, sans-serif; min-width: 160px;">
-          <div style="font-weight: 800; font-size: 16px; margin-bottom: 2px;">${friend.name}</div>
-          <div style="font-size: 13px; color: #6B7280;">${friend.city}</div>
-          <div style="font-size: 12px; color: #F97316; margin: 6px 0;">${friend.distance_miles} mi off route</div>
-          ${alreadyPinged
-            ? `<div style="font-size: 13px; color: #6B7280; font-style: italic;">Ping sent ✓</div>`
-            : `<button id="ping-${friend.id}" style="
-                width: 100%; padding: 9px; background: #F97316; color: white;
-                border: none; border-radius: 8px; font-weight: 700; font-size: 14px;
-                cursor: pointer; margin-top: 4px;">
-                Send ping
-              </button>`
-          }
-        </div>
-      `;
+      const startIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;background:#F97316;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>', iconAnchor: [7, 7] });
+      const endIcon = L.divIcon({ className: '', html: '<div style="width:14px;height:14px;background:#C2410C;border:2px solid white;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>', iconAnchor: [7, 7] });
 
-      const popup = new mapboxgl.Popup({ offset: 20, className: 'map-popup' })
-        .setHTML(popupHTML);
+      const sm = L.marker(latlngs[0], { icon: startIcon }).addTo(map);
+      const em = L.marker(latlngs[latlngs.length - 1], { icon: endIcon }).addTo(map);
+      layersRef.current.push(sm, em);
+    }
 
-      popup.on('open', () => {
-        setTimeout(() => {
-          const btn = document.getElementById(`ping-${friend.id}`);
-          if (btn) btn.onclick = () => { onPing(friend); popup.remove(); };
-        }, 50);
+    if (nearbyFriends) {
+      nearbyFriends.forEach(friend => {
+        const alreadyPinged = sentPings?.some(p => p.recipient_id === friend.id);
+
+        const html = `<div style="background:white;border:2.5px solid #F97316;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:#1F2937;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);cursor:pointer">${friend.name}</div>`;
+        const icon = L.divIcon({ className: '', html, iconAnchor: [0, 0] });
+
+        const popupContent = `
+          <div style="font-family:-apple-system,sans-serif;min-width:160px">
+            <div style="font-weight:800;font-size:16px;margin-bottom:2px">${friend.name}</div>
+            <div style="font-size:13px;color:#6B7280">${friend.city}</div>
+            <div style="font-size:12px;color:#F97316;margin:6px 0">${friend.distance_miles} mi off route</div>
+            ${alreadyPinged
+              ? `<div style="font-size:13px;color:#6B7280;font-style:italic">Ping sent ✓</div>`
+              : `<button onclick="window._pingFriend('${friend.id}')" style="width:100%;padding:9px;background:#F97316;color:white;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer">Send ping</button>`
+            }
+          </div>`;
+
+        const marker = L.marker([friend.city_lat, friend.city_lng], { icon })
+          .bindPopup(popupContent)
+          .addTo(map);
+
+        layersRef.current.push(marker);
+        bounds.push([friend.city_lat, friend.city_lng]);
       });
 
-      const marker = new mapboxgl.Marker({ element: el })
-        .setLngLat([friend.city_lng, friend.city_lat])
-        .setPopup(popup)
-        .addTo(map);
+      // Global ping handler called from popup button
+      window._pingFriend = (friendId) => {
+        const friend = nearbyFriends.find(f => f.id === friendId);
+        if (friend) { onPing(friend); map.closePopup(); }
+      };
+    }
 
-      markersRef.current.push(marker);
-    });
-  }, [nearbyFriends, sentPings]);
-
-  if (mapError) {
-    return (
-      <div className="map-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#F3F4F6', flexDirection: 'column', gap: 8 }}>
-        <span style={{ fontSize: 32 }}>🗺️</span>
-        <span style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', padding: '0 20px' }}>
-          Add your Mapbox token in <code>.env</code> to see the map
-        </span>
-      </div>
-    );
-  }
+    if (bounds.length > 0) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [routeCoords, nearbyFriends, sentPings]);
 
   return <div ref={mapRef} className="map-container" />;
 }
