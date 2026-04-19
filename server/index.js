@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const { init } = require('./db/database');
 
 const app = express();
 app.use(cors());
@@ -26,4 +27,6 @@ app.use(express.static(clientDist));
 app.get('*', (_, res) => res.sendFile(path.join(clientDist, 'index.html')));
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`RouteMates server on :${PORT}`));
+init()
+  .then(() => app.listen(PORT, () => console.log(`RouteMates server on :${PORT}`)))
+  .catch(err => { console.error('DB init failed:', err); process.exit(1); });
