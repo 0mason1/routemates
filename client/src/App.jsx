@@ -5,6 +5,7 @@ import HomePage from './pages/HomePage';
 import TripsPage from './pages/TripsPage';
 import FriendsPage from './pages/FriendsPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
+import SharedTripPage from './pages/SharedTripPage';
 import { useEffect, useState } from 'react';
 import { api } from './lib/api';
 import NotificationBell from './components/NotificationBell';
@@ -77,6 +78,7 @@ function InnerApp() {
             <Route path="/trips" element={<TripsPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/invite/:code" element={<AcceptInvitePage />} />
+            <Route path="/trip/:code" element={<SharedTripPage />} />
           </Routes>
         </div>
         {!hideNav && (
@@ -143,6 +145,16 @@ function InnerAppWrapper() {
         </AuthContext.Provider>
       );
     }
+    if (location.pathname.startsWith('/trip/')) {
+      return (
+        <AuthContext.Provider value={auth}>
+          <Routes>
+            <Route path="/trip/:code" element={<SharedTripPage />} />
+            <Route path="*" element={<AuthPage />} />
+          </Routes>
+        </AuthContext.Provider>
+      );
+    }
     return (
       <AuthContext.Provider value={auth}>
         <AuthPage />
@@ -165,6 +177,7 @@ function InnerAppWrapper() {
             <Route path="/trips" element={<TripsPage />} />
             <Route path="/friends" element={<FriendsPage />} />
             <Route path="/invite/:code" element={<AcceptInvitePage />} />
+            <Route path="/trip/:code" element={<SharedTripPage />} />
           </Routes>
         </div>
         {!hideNav && (

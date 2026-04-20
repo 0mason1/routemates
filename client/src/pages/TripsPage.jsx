@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
 
 function formatDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -10,8 +11,17 @@ function isPast(d) {
   return new Date(d + 'T23:59:59') < new Date();
 }
 
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 export default function TripsPage() {
   const { user } = useAuth();
+  const { toast, showToast } = useToast();
   const [trips, setTrips] = useState([]);
   const [pings, setPings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +45,28 @@ export default function TripsPage() {
       await api.respondPing(pingId, status);
       setPings(ps => ps.map(p => p.id === pingId ? { ...p, status } : p));
     } catch {}
+  }
+
+  async function handleShare(shareCode) {
+    const link = `${window.location.origin}/trip/${shareCode}`;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(link);
+      } else {
+        const el = document.createElement('textarea');
+        el.value = link;
+        el.style.position = 'fixed';
+        el.style.opacity = '0';
+        document.body.appendChild(el);
+        el.focus();
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      showToast('Trip link copied!');
+    } catch {
+      showToast('Link: ' + link);
+    }
   }
 
   const upcoming = trips.filter(t => !isPast(t.trip_date));
@@ -88,7 +120,7 @@ export default function TripsPage() {
               <h3>No upcoming trips</h3>
               <p>Plan a trip from the home screen</p>
             </div>
-          ) : upcoming.map(t => <TripCard key={t.id} trip={t} />)}
+          ) : upcoming.map(t => <TripCard key={t.id} trip={t} onShare={handleShare} />)}
         </div>
       )}
 
@@ -99,7 +131,7 @@ export default function TripsPage() {
               <div className="empty-icon">📍</div>
               <h3>No past trips</h3>
             </div>
-          ) : past.map(t => <TripCard key={t.id} trip={t} past />)}
+          ) : past.map(t => <TripCard key={t.id} trip={t} past onShare={handleShare} />)}
         </div>
       )}
 
@@ -116,6 +148,8 @@ export default function TripsPage() {
           ))}
         </div>
       )}
+
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
@@ -243,6 +277,11 @@ function PingChat({ pingId, currentUserId }) {
               }}>
                 {m.message}
               </div>
+              {m.created_at && (
+                <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
+                  {timeAgo(m.created_at)}
+                </div>
+              )}
             </div>
           );
         })}
@@ -283,48 +322,107 @@ function NavigateButtons({ ping: p }) {
     waze: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
   };
 
+  const hasMidpoint = p.sender_lat && p.sender_lng && p.recipient_lat && p.recipient_lng;
+  const midLat = hasMidpoint ? ((p.sender_lat + p.recipient_lat) / 2).toFixed(6) : null;
+  const midLng = hasMidpoint ? ((p.sender_lng + p.recipient_lng) / 2).toFixed(6) : null;
+
+  const midUrls = hasMidpoint ? {
+    apple: `maps://maps.apple.com/?daddr=${midLat},${midLng}&dirflg=d`,
+    google: `https://www.google.com/maps/dir/?api=1&destination=${midLat},${midLng}`,
+    waze: `https://waze.com/ul?ll=${midLat},${midLng}&navigate=yes`,
+  } : null;
+
   return (
-    <div>
-      <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 8, fontWeight: 600 }}>
-        Navigate to {name}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div>
+        <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 8, fontWeight: 600 }}>
+          Navigate to {name}
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[
+            { key: 'apple', label: '🍎 Apple Maps' },
+            { key: 'google', label: '🗺️ Google Maps' },
+            { key: 'waze', label: '🚗 Waze' },
+          ].map(({ key, label }) => (
+            <a
+              key={key}
+              href={urls[key]}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10,
+                background: 'var(--gray-100)', color: 'var(--gray-800)',
+                fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                border: '1px solid var(--gray-200)',
+              }}
+            >
+              {label}
+            </a>
+          ))}
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {[
-          { key: 'apple', label: '🍎 Apple Maps' },
-          { key: 'google', label: '🗺️ Google Maps' },
-          { key: 'waze', label: '🚗 Waze' },
-        ].map(({ key, label }) => (
-          <a
-            key={key}
-            href={urls[key]}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10,
-              background: 'var(--gray-100)', color: 'var(--gray-800)',
-              fontSize: 12, fontWeight: 700, textDecoration: 'none',
-              border: '1px solid var(--gray-200)',
-            }}
-          >
-            {label}
-          </a>
-        ))}
-      </div>
+
+      {midUrls && (
+        <div>
+          <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 4, fontWeight: 600 }}>
+            🤝 Suggested meeting point
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--gray-400)', marginBottom: 8 }}>
+            Midpoint between your locations
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[
+              { key: 'apple', label: '🍎 Apple Maps' },
+              { key: 'google', label: '🗺️ Google Maps' },
+              { key: 'waze', label: '🚗 Waze' },
+            ].map(({ key, label }) => (
+              <a
+                key={key}
+                href={midUrls[key]}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10,
+                  background: '#FFF7ED', color: 'var(--orange)',
+                  fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                  border: '1px solid var(--orange-light)',
+                }}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function TripCard({ trip, past }) {
+function TripCard({ trip, past, onShare }) {
   return (
     <div className="trip-card" style={{ opacity: past ? 0.7 : 1 }}>
-      <div className="trip-route">
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
-          {trip.start_address.split(',')[0]}
-        </span>
-        <span className="trip-arrow">→</span>
-        <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, textAlign: 'right' }}>
-          {trip.end_address.split(',')[0]}
-        </span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div className="trip-route" style={{ flex: 1, marginBottom: 0 }}>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
+            {trip.start_address.split(',')[0]}
+          </span>
+          <span className="trip-arrow">→</span>
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, textAlign: 'right' }}>
+            {trip.end_address.split(',')[0]}
+          </span>
+        </div>
+        {trip.share_code && (
+          <button
+            onClick={() => onShare(trip.share_code)}
+            title="Copy share link"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: '0 0 0 8px', flexShrink: 0 }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+            </svg>
+          </button>
+        )}
       </div>
       <div className="trip-date">{formatDate(trip.trip_date)}</div>
     </div>

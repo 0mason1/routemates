@@ -30,15 +30,27 @@ function distToRoute(lat, lng, coords) {
   return minDist;
 }
 
+router.get('/share/:code', async (req, res, next) => {
+  try {
+    const trip = (await query(
+      'SELECT id,start_address,end_address,start_lat,start_lng,end_lat,end_lng,trip_date,route_geometry FROM trips WHERE share_code=$1',
+      [req.params.code]
+    )).rows[0];
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    res.json(trip);
+  } catch (err) { next(err); }
+});
+
 router.post('/', auth, async (req, res, next) => {
   try {
     const { start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry } = req.body;
     if (!start_address || !end_address || !trip_date) return res.status(400).json({ error: 'Missing fields' });
     const id = uuidv4();
+    const share_code = uuidv4().replace(/-/g, '').slice(0, 10);
     await query(
-      `INSERT INTO trips (id,user_id,start_address,end_address,start_lat,start_lng,end_lat,end_lng,trip_date,route_geometry)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-      [id, req.user.id, start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry ? JSON.stringify(route_geometry) : null]
+      `INSERT INTO trips (id,user_id,start_address,end_address,start_lat,start_lng,end_lat,end_lng,trip_date,route_geometry,share_code)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+      [id, req.user.id, start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry ? JSON.stringify(route_geometry) : null, share_code]
     );
     const trip = (await query('SELECT * FROM trips WHERE id=$1', [id])).rows[0];
     res.json(trip);

@@ -6,7 +6,7 @@ import AddressInput from '../components/AddressInput';
 export default function AuthPage() {
   const { login } = useAuth();
   const [mode, setMode] = useState('login');
-  const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [form, setForm] = useState({ name: '', username: '', email: '', password: '', phone: '' });
   const [homeAddress, setHomeAddress] = useState({ text: '', lat: null, lng: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -25,7 +25,7 @@ export default function AuthPage() {
       const res = mode === 'login'
         ? await api.login({ email: form.email, password: form.password })
         : await api.signup({
-            name: form.name, email: form.email, password: form.password, phone: form.phone,
+            name: form.name, username: form.username, email: form.email, password: form.password, phone: form.phone,
             city: homeAddress.text || null,
             city_lat: homeAddress.lat,
             city_lng: homeAddress.lng,
@@ -50,6 +50,13 @@ export default function AuthPage() {
           <div className="field">
             <label>Your name</label>
             <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your full name" required />
+          </div>
+        )}
+
+        {mode === 'signup' && (
+          <div className="field">
+            <label>Username</label>
+            <input value={form.username} onChange={e => set('username', e.target.value)} placeholder="e.g. mason_drives" required />
           </div>
         )}
 

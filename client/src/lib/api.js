@@ -19,6 +19,7 @@ export const api = {
   login: (body) => request('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
   me: () => request('/auth/me'),
   updateCity: (body) => request('/auth/city', { method: 'PUT', body: JSON.stringify(body) }),
+  deleteAccount: () => request('/auth/me', { method: 'DELETE' }),
 
   getInvite: (code) => request(`/friends/invite/${code}`),
   acceptInvite: (code) => request(`/friends/invite/${code}/accept`, { method: 'POST' }),
@@ -32,6 +33,10 @@ export const api = {
 
   getDirectMessages: (friendId) => request(`/messages/${friendId}`),
   sendDirectMessage: (friendId, message) => request(`/messages/${friendId}`, { method: 'POST', body: JSON.stringify({ message }) }),
+  getUnreadCounts: () => request('/messages/unread'),
+  markMessagesRead: (friendId) => request(`/messages/${friendId}/read`, { method: 'POST' }),
+
+  getSharedTrip: (code) => request(`/trips/share/${code}`),
 
   sendPing: (body) => request('/pings', { method: 'POST', body: JSON.stringify(body) }),
   getInbox: () => request('/pings/inbox'),

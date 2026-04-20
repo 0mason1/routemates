@@ -4,8 +4,16 @@ import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import AddressInput from '../components/AddressInput';
 
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr)) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return new Date(dateStr).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return new Date(dateStr).toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
 export default function FriendsPage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout } = useAuth();
   const { toast, showToast } = useToast();
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,18 +21,27 @@ export default function FriendsPage() {
   const [cityCoords, setCityCoords] = useState(null);
   const [savingCity, setSavingCity] = useState(false);
   const [showCityEdit, setShowCityEdit] = useState(!user?.city);
+  const [search, setSearch] = useState('');
+  const [unreadCounts, setUnreadCounts] = useState({});
 
   useEffect(() => {
-    api.getFriends()
-      .then(setFriends)
+    Promise.all([api.getFriends(), api.getUnreadCounts()])
+      .then(([f, counts]) => {
+        setFriends(f);
+        setUnreadCounts(counts);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
+  const filteredFriends = friends.filter(f =>
+    f.name.toLowerCase().includes(search.toLowerCase()) ||
+    (f.username && f.username.toLowerCase().includes(search.toLowerCase()))
+  );
+
   const inviteLink = `${window.location.origin}/invite/${user?.invite_code}`;
 
   async function copyLink() {
-    // navigator.clipboard requires HTTPS — fall back to execCommand for HTTP
     try {
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(inviteLink);
@@ -58,6 +75,21 @@ export default function FriendsPage() {
     } finally {
       setSavingCity(false);
     }
+  }
+
+  async function handleDelete() {
+    if (!window.confirm('Delete your account? This cannot be undone.')) return;
+    try {
+      await api.deleteAccount();
+      logout();
+    } catch (err) {
+      showToast(err.message);
+    }
+  }
+
+  function handleChatOpen(friendId) {
+    api.markMessagesRead(friendId).catch(() => {});
+    setUnreadCounts(prev => ({ ...prev, [friendId]: 0 }));
   }
 
   return (
@@ -116,6 +148,18 @@ export default function FriendsPage() {
         <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 12 }}>
           {loading ? 'Loading...' : `${friends.length} friend${friends.length !== 1 ? 's' : ''}`}
         </div>
+
+        {/* Search */}
+        {!loading && friends.length > 0 && (
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search friends..."
+            style={{ width: '100%', borderRadius: 10, padding: '10px 14px', border: '1.5px solid var(--gray-200)', fontSize: 14, boxSizing: 'border-box', marginBottom: 12 }}
+          />
+        )}
+
         {!loading && friends.length === 0 ? (
           <div className="empty">
             <div className="empty-icon">👯</div>
@@ -124,9 +168,25 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {friends.map(f => <FriendCard key={f.id} friend={f} currentUserId={user?.id} />)}
+            {filteredFriends.map(f => (
+              <FriendCard
+                key={f.id}
+                friend={f}
+                currentUserId={user?.id}
+                unreadCount={unreadCounts[f.id] || 0}
+                onChatOpen={() => handleChatOpen(f.id)}
+              />
+            ))}
           </div>
         )}
+      </div>
+
+      {/* Logout + Delete */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+        <button className="btn-secondary" onClick={logout}>Log out</button>
+        <button onClick={handleDelete} style={{ background: 'none', border: 'none', color: '#DC2626', fontSize: 13, cursor: 'pointer' }}>
+          Delete account
+        </button>
       </div>
 
       {toast && <div className="toast">{toast}</div>}
@@ -134,9 +194,16 @@ export default function FriendsPage() {
   );
 }
 
-function FriendCard({ friend: f, currentUserId }) {
+function FriendCard({ friend: f, currentUserId, unreadCount, onChatOpen }) {
   const [showAddress, setShowAddress] = useState(false);
   const [showChat, setShowChat] = useState(false);
+
+  function handleChatToggle() {
+    if (!showChat) {
+      onChatOpen();
+    }
+    setShowChat(v => !v);
+  }
 
   return (
     <div className="card" style={{ padding: '14px 16px' }}>
@@ -160,14 +227,26 @@ function FriendCard({ friend: f, currentUserId }) {
             </button>
           )}
         </div>
-        <button
-          onClick={() => setShowChat(v => !v)}
-          style={{ background: showChat ? 'var(--orange)' : 'var(--gray-100)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={showChat ? 'white' : 'var(--gray-500)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-        </button>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button
+            onClick={handleChatToggle}
+            style={{ background: showChat ? 'var(--orange)' : 'var(--gray-100)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={showChat ? 'white' : 'var(--gray-500)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+            </svg>
+          </button>
+          {unreadCount > 0 && (
+            <span style={{
+              position: 'absolute', top: -3, right: -3,
+              background: 'var(--orange)', color: 'white',
+              borderRadius: '99px', fontSize: 10, fontWeight: 800,
+              padding: '1px 5px', lineHeight: 1.4, minWidth: 16, textAlign: 'center',
+            }}>
+              {unreadCount}
+            </span>
+          )}
+        </div>
       </div>
 
       {showChat && (
@@ -222,6 +301,11 @@ function DirectChat({ friendId, currentUserId }) {
               }}>
                 {m.message}
               </div>
+              {m.created_at && (
+                <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
+                  {timeAgo(m.created_at)}
+                </div>
+              )}
             </div>
           );
         })}

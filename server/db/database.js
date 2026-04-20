@@ -81,6 +81,18 @@ async function init() {
 
   await query(`ALTER TABLE pings ADD COLUMN IF NOT EXISTS message TEXT;`);
 
+  await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;`);
+  await query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS share_code TEXT UNIQUE;`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS dm_reads (
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      last_read_at TIMESTAMPTZ DEFAULT NOW(),
+      PRIMARY KEY (user_id, friend_id)
+    );
+  `);
+
   await query(`
     CREATE TABLE IF NOT EXISTS direct_messages (
       id TEXT PRIMARY KEY,

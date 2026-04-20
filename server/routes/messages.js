@@ -20,6 +20,31 @@ async function sendPushToUser(userId, payload) {
 
 const router = express.Router();
 
+router.get('/unread', auth, async (req, res, next) => {
+  try {
+    const result = await query(`
+      SELECT dm.sender_id as friend_id, COUNT(*) as count
+      FROM direct_messages dm
+      LEFT JOIN dm_reads r ON r.user_id=$1 AND r.friend_id=dm.sender_id
+      WHERE dm.recipient_id=$1 AND (r.last_read_at IS NULL OR dm.created_at > r.last_read_at)
+      GROUP BY dm.sender_id
+    `, [req.user.id]);
+    const counts = {};
+    result.rows.forEach(r => { counts[r.friend_id] = parseInt(r.count); });
+    res.json(counts);
+  } catch (err) { next(err); }
+});
+
+router.post('/:friendId/read', auth, async (req, res, next) => {
+  try {
+    await query(`
+      INSERT INTO dm_reads (user_id, friend_id, last_read_at) VALUES ($1,$2,NOW())
+      ON CONFLICT (user_id, friend_id) DO UPDATE SET last_read_at=NOW()
+    `, [req.user.id, req.params.friendId]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.get('/:friendId', auth, async (req, res, next) => {
   try {
     const { friendId } = req.params;
