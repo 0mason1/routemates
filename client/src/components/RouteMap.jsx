@@ -59,7 +59,9 @@ export default function RouteMap({ routeCoords, nearbyFriends, onPing, sentPings
       nearbyFriends.forEach(friend => {
         const alreadyPinged = sentPings?.some(p => p.recipient_id === friend.id);
 
-        const html = `<div style="background:white;border:2.5px solid #F97316;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:#1F2937;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);cursor:pointer">${friend.name}</div>`;
+        const html = alreadyPinged
+          ? `<div style="background:#F3F4F6;border:2.5px solid #9CA3AF;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:#6B7280;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.1);cursor:pointer">${friend.name} ✓</div>`
+          : `<div style="background:white;border:2.5px solid #F97316;border-radius:99px;padding:4px 10px;font-size:12px;font-weight:700;color:#1F2937;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.15);cursor:pointer">${friend.name}</div>`;
         const icon = L.divIcon({ className: '', html, iconAnchor: [0, 0] });
 
         const popupContent = `

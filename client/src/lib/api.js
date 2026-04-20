@@ -28,6 +28,8 @@ export const api = {
   getTrips: () => request('/trips'),
   getNearby: (tripId, radius) => request(`/trips/${tripId}/nearby?radius=${radius}`),
 
+  savePushSubscription: (sub) => request('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub }) }),
+
   sendPing: (body) => request('/pings', { method: 'POST', body: JSON.stringify(body) }),
   getInbox: () => request('/pings/inbox'),
   getSent: () => request('/pings/sent'),

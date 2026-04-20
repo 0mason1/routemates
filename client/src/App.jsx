@@ -8,6 +8,7 @@ import AcceptInvitePage from './pages/AcceptInvitePage';
 import { useEffect, useState } from 'react';
 import { api } from './lib/api';
 import NotificationBell from './components/NotificationBell';
+import { registerPush } from './lib/push';
 
 function NavIcon({ path, label, icon }) {
   const location = useLocation();
@@ -113,6 +114,12 @@ function InnerAppWrapper() {
     if (pending && auth.user) {
       localStorage.removeItem('rm_pending_invite');
       api.acceptInvite(pending).catch(() => {});
+    }
+  }, [auth.user]);
+
+  useEffect(() => {
+    if (auth.user) {
+      registerPush((sub) => api.savePushSubscription(sub)).catch(() => {});
     }
   }, [auth.user]);
 
