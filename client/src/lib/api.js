@@ -30,6 +30,9 @@ export const api = {
 
   savePushSubscription: (sub) => request('/push/subscribe', { method: 'POST', body: JSON.stringify({ subscription: sub }) }),
 
+  getDirectMessages: (friendId) => request(`/messages/${friendId}`),
+  sendDirectMessage: (friendId, message) => request(`/messages/${friendId}`, { method: 'POST', body: JSON.stringify({ message }) }),
+
   sendPing: (body) => request('/pings', { method: 'POST', body: JSON.stringify(body) }),
   getInbox: () => request('/pings/inbox'),
   getSent: () => request('/pings/sent'),

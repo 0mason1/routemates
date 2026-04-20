@@ -80,6 +80,19 @@ async function init() {
   `);
 
   await query(`ALTER TABLE pings ADD COLUMN IF NOT EXISTS message TEXT;`);
+
+  await query(`
+    CREATE TABLE IF NOT EXISTS direct_messages (
+      id TEXT PRIMARY KEY,
+      sender_id TEXT NOT NULL REFERENCES users(id),
+      recipient_id TEXT NOT NULL REFERENCES users(id),
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS dm_pair ON direct_messages (
+      LEAST(sender_id, recipient_id), GREATEST(sender_id, recipient_id), created_at
+    );
+  `);
 }
 
 module.exports = { query, init };

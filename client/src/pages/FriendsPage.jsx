@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -124,7 +124,7 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {friends.map(f => <FriendCard key={f.id} friend={f} />)}
+            {friends.map(f => <FriendCard key={f.id} friend={f} currentUserId={user?.id} />)}
           </div>
         )}
       </div>
@@ -134,28 +134,116 @@ export default function FriendsPage() {
   );
 }
 
-function FriendCard({ friend: f }) {
+function FriendCard({ friend: f, currentUserId }) {
   const [showAddress, setShowAddress] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+
   return (
-    <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      <div style={{
-        width: 42, height: 42, borderRadius: '50%',
-        background: 'linear-gradient(135deg, var(--orange), var(--amber))',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        color: 'white', fontWeight: 800, fontSize: 16, flexShrink: 0,
-      }}>
-        {f.name[0].toUpperCase()}
+    <div className="card" style={{ padding: '14px 16px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{
+          width: 42, height: 42, borderRadius: '50%',
+          background: 'linear-gradient(135deg, var(--orange), var(--amber))',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: 'white', fontWeight: 800, fontSize: 16, flexShrink: 0,
+        }}>
+          {f.name[0].toUpperCase()}
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
+          {f.city && (
+            <button
+              onClick={() => setShowAddress(v => !v)}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 13, color: 'var(--gray-400)', marginTop: 2, textAlign: 'left' }}
+            >
+              {showAddress ? f.city : 'Tap to see location'}
+            </button>
+          )}
+        </div>
+        <button
+          onClick={() => setShowChat(v => !v)}
+          style={{ background: showChat ? 'var(--orange)' : 'var(--gray-100)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke={showChat ? 'white' : 'var(--gray-500)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </button>
       </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
-        {f.city && (
-          <button
-            onClick={() => setShowAddress(v => !v)}
-            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 13, color: 'var(--gray-400)', marginTop: 2, textAlign: 'left' }}
-          >
-            {showAddress ? f.city : 'Tap to see location'}
-          </button>
+
+      {showChat && (
+        <div style={{ marginTop: 14, borderTop: '1px solid var(--gray-100)', paddingTop: 14 }}>
+          <DirectChat friendId={f.id} currentUserId={currentUserId} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DirectChat({ friendId, currentUserId }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    api.getDirectMessages(friendId).then(setMessages).catch(() => {});
+    const t = setInterval(() => api.getDirectMessages(friendId).then(setMessages).catch(() => {}), 8000);
+    return () => clearInterval(t);
+  }, [friendId]);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+
+  async function send() {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      const msg = await api.sendDirectMessage(friendId, text.trim());
+      setMessages(ms => [...ms, msg]);
+      setText('');
+    } catch {}
+    setSending(false);
+  }
+
+  return (
+    <div>
+      <div style={{ maxHeight: 200, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+        {messages.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--gray-400)', textAlign: 'center', padding: '8px 0' }}>No messages yet</div>
         )}
+        {messages.map(m => {
+          const mine = m.sender_id === currentUserId;
+          return (
+            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                background: mine ? 'var(--orange)' : 'var(--gray-100)',
+                color: mine ? 'white' : 'var(--gray-800)',
+                borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                padding: '8px 12px', fontSize: 14, maxWidth: '80%',
+              }}>
+                {m.message}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
+          placeholder="Send a message..."
+          style={{ flex: 1, borderRadius: 99, padding: '9px 14px', fontSize: 14, border: '1.5px solid var(--gray-200)' }}
+        />
+        <button onClick={send} disabled={sending || !text.trim()} style={{
+          background: 'var(--orange)', color: 'white', border: 'none',
+          borderRadius: '50%', width: 38, height: 38, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
       </div>
     </div>
   );
