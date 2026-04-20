@@ -45,6 +45,13 @@ router.post('/:friendId/read', auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.get('/:friendId/seen', auth, async (req, res, next) => {
+  try {
+    const row = (await query('SELECT last_read_at FROM dm_reads WHERE user_id=$1 AND friend_id=$2', [req.params.friendId, req.user.id])).rows[0];
+    res.json({ last_read_at: row?.last_read_at || null });
+  } catch (err) { next(err); }
+});
+
 router.get('/:friendId', auth, async (req, res, next) => {
   try {
     const { friendId } = req.params;

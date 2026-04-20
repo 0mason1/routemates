@@ -10,6 +10,7 @@ export default function AcceptInvitePage() {
   const [inviter, setInviter] = useState(null);
   const [status, setStatus] = useState('loading');
   const [msg, setMsg] = useState('');
+  const [mutual, setMutual] = useState(null);
 
   useEffect(() => {
     api.getInvite(code)
@@ -18,7 +19,12 @@ export default function AcceptInvitePage() {
   }, [code]);
 
   useEffect(() => {
-    if (inviter) setStatus(user ? 'ready' : 'needsAuth');
+    if (inviter) {
+      setStatus(user ? 'ready' : 'needsAuth');
+      if (user) {
+        api.getMutualFriends(inviter.id).then(setMutual).catch(() => {});
+      }
+    }
   }, [inviter, user]);
 
   async function accept() {
@@ -64,6 +70,11 @@ export default function AcceptInvitePage() {
         <div style={{ fontSize: 56 }}>👋</div>
         <h2 style={{ marginTop: 12, fontSize: 22 }}>{inviter?.name} wants to be RouteMates!</h2>
         {inviter?.city && <p style={{ color: 'var(--gray-400)', marginTop: 6 }}>Currently in {inviter.city}</p>}
+        {mutual && mutual.count > 0 && (
+          <p style={{ color: 'var(--orange)', fontWeight: 600, fontSize: 14, marginTop: 6 }}>
+            {mutual.count} mutual friend{mutual.count !== 1 ? 's' : ''}{mutual.names.length > 0 ? ` · ${mutual.names.join(', ')}` : ''}
+          </p>
+        )}
 
         {msg ? (
           <div style={{ marginTop: 20, padding: '14px', background: '#D1FAE5', borderRadius: 10, color: '#065F46', fontWeight: 600 }}>{msg}</div>

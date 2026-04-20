@@ -38,6 +38,8 @@ export const api = {
 
   deleteTrip: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
   getSharedTrip: (code) => request(`/trips/share/${code}`),
+  getMutualFriends: (userId) => request(`/friends/mutual/${userId}`),
+  getSeenStatus: (friendId) => request(`/messages/${friendId}/seen`),
 
   sendPing: (body) => request('/pings', { method: 'POST', body: JSON.stringify(body) }),
   getInbox: () => request('/pings/inbox'),

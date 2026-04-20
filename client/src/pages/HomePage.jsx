@@ -16,6 +16,7 @@ export default function HomePage() {
 
   const [start, setStart] = useState(() => load('rm_hp_start', { text: '', lat: null, lng: null }));
   const [end, setEnd] = useState(() => load('rm_hp_end', { text: '', lat: null, lng: null }));
+  const [waypoints, setWaypoints] = useState(() => load('rm_hp_waypoints', []));
   const [date, setDate] = useState(() => load('rm_hp_date', ''));
   const [routeCoords, setRouteCoords] = useState(() => load('rm_hp_route', null));
   const [radius, setRadius] = useState(() => load('rm_hp_radius', 20));
@@ -29,6 +30,7 @@ export default function HomePage() {
 
   useEffect(() => { localStorage.setItem('rm_hp_start', JSON.stringify(start)); }, [start]);
   useEffect(() => { localStorage.setItem('rm_hp_end', JSON.stringify(end)); }, [end]);
+  useEffect(() => { localStorage.setItem('rm_hp_waypoints', JSON.stringify(waypoints)); }, [waypoints]);
   useEffect(() => { localStorage.setItem('rm_hp_date', JSON.stringify(date)); }, [date]);
   useEffect(() => { localStorage.setItem('rm_hp_route', JSON.stringify(routeCoords)); }, [routeCoords]);
   useEffect(() => { localStorage.setItem('rm_hp_radius', JSON.stringify(radius)); }, [radius]);
@@ -43,7 +45,12 @@ export default function HomePage() {
     if (!start.lat || !end.lat || !date) return;
     setLoading(true);
     try {
-      const coords = await getRoute(start.lng, start.lat, end.lng, end.lat);
+      const allPoints = [
+        { lng: start.lng, lat: start.lat },
+        ...waypoints.filter(w => w.lat).map(w => ({ lng: w.lng, lat: w.lat })),
+        { lng: end.lng, lat: end.lat },
+      ];
+      const coords = await getRoute(allPoints);
       setRouteCoords(coords);
 
       const newTrip = await api.createTrip({
@@ -55,6 +62,7 @@ export default function HomePage() {
         end_lng: end.lng,
         trip_date: date,
         route_geometry: coords,
+        waypoints: waypoints.filter(w => w.lat),
       });
       setTrip(newTrip);
 
@@ -97,6 +105,18 @@ export default function HomePage() {
     }
   }
 
+  function addWaypoint() {
+    setWaypoints(ws => [...ws, { text: '', lat: null, lng: null }]);
+  }
+
+  function removeWaypoint(i) {
+    setWaypoints(ws => ws.filter((_, idx) => idx !== i));
+  }
+
+  function updateWaypoint(i, update) {
+    setWaypoints(ws => ws.map((w, idx) => idx === i ? { ...w, ...update } : w));
+  }
+
   const canPlan = start.lat && end.lat && date;
   const hasAnything = start.text || end.text || date || routeCoords || nearby;
 
@@ -104,8 +124,8 @@ export default function HomePage() {
     const empty = { text: '', lat: null, lng: null };
     setStart(empty); setEnd(empty); setDate('');
     setRouteCoords(null); setNearby(null); setTrip(null);
-    setSentPings([]); setRadius(20);
-    ['rm_hp_start','rm_hp_end','rm_hp_date','rm_hp_route','rm_hp_nearby','rm_hp_trip','rm_hp_radius'].forEach(k => localStorage.removeItem(k));
+    setSentPings([]); setRadius(20); setWaypoints([]);
+    ['rm_hp_start','rm_hp_end','rm_hp_date','rm_hp_route','rm_hp_nearby','rm_hp_trip','rm_hp_radius','rm_hp_waypoints'].forEach(k => localStorage.removeItem(k));
   }
 
   return (
@@ -130,6 +150,22 @@ export default function HomePage() {
           onSelect={({ name, lat, lng }) => setStart({ text: name, lat, lng })}
           placeholder="Select starting location"
         />
+        {waypoints.map((wp, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <AddressInput
+                label={`Stop ${i + 1}`}
+                value={wp.text}
+                onChange={t => updateWaypoint(i, { text: t, lat: null, lng: null })}
+                onSelect={({ name, lat, lng }) => updateWaypoint(i, { text: name, lat, lng })}
+                placeholder="Add a stop"
+              />
+            </div>
+            <button onClick={() => removeWaypoint(i)} style={{ background: 'none', border: '1.5px solid var(--gray-200)', borderRadius: 8, padding: '10px 10px', cursor: 'pointer', color: 'var(--gray-400)', flexShrink: 0, marginBottom: 2 }}>
+              ✕
+            </button>
+          </div>
+        ))}
         <AddressInput
           label="To"
           value={end.text}
@@ -137,6 +173,9 @@ export default function HomePage() {
           onSelect={({ name, lat, lng }) => setEnd({ text: name, lat, lng })}
           placeholder="Select destination"
         />
+        <button onClick={addWaypoint} style={{ background: 'none', border: '1.5px dashed var(--gray-200)', borderRadius: 10, padding: '9px 0', fontSize: 13, fontWeight: 700, color: 'var(--gray-400)', cursor: 'pointer', width: '100%' }}>
+          + Add stop
+        </button>
         <div className="field">
           <label>Date</label>
           <input

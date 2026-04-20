@@ -32,13 +32,27 @@ router.post('/invite/:code/accept', auth, async (req, res, next) => {
 router.get('/', auth, async (req, res, next) => {
   try {
     const result = await query(`
-      SELECT u.id,u.name,u.city,u.city_lat,u.city_lng
-      FROM friendships f
-      JOIN users u ON u.id=f.friend_id
-      WHERE f.user_id=$1
-      ORDER BY u.name
+      SELECT u.id, u.name, u.username, u.city, u.city_lat, u.city_lng,
+        (SELECT COUNT(*) FROM friendships f2
+         WHERE f2.user_id=u.id AND f2.friend_id IN
+           (SELECT friend_id FROM friendships WHERE user_id=$1)) AS mutual_count
+      FROM friendships f JOIN users u ON u.id=f.friend_id
+      WHERE f.user_id=$1 ORDER BY u.name
     `, [req.user.id]);
     res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+router.get('/mutual/:userId', auth, async (req, res, next) => {
+  try {
+    const result = await query(`
+      SELECT u.name FROM friendships f1
+      JOIN friendships f2 ON f2.friend_id=f1.friend_id AND f2.user_id=$2
+      JOIN users u ON u.id=f1.friend_id
+      WHERE f1.user_id=$1
+      LIMIT 3
+    `, [req.user.id, req.params.userId]);
+    res.json({ count: result.rows.length, names: result.rows.map(r => r.name) });
   } catch (err) { next(err); }
 });
 

@@ -43,14 +43,14 @@ router.get('/share/:code', async (req, res, next) => {
 
 router.post('/', auth, async (req, res, next) => {
   try {
-    const { start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry } = req.body;
+    const { start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry, waypoints } = req.body;
     if (!start_address || !end_address || !trip_date) return res.status(400).json({ error: 'Missing fields' });
     const id = uuidv4();
     const share_code = uuidv4().replace(/-/g, '').slice(0, 10);
     await query(
-      `INSERT INTO trips (id,user_id,start_address,end_address,start_lat,start_lng,end_lat,end_lng,trip_date,route_geometry,share_code)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [id, req.user.id, start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry ? JSON.stringify(route_geometry) : null, share_code]
+      `INSERT INTO trips (id,user_id,start_address,end_address,start_lat,start_lng,end_lat,end_lng,trip_date,route_geometry,share_code,waypoints)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+      [id, req.user.id, start_address, end_address, start_lat, start_lng, end_lat, end_lng, trip_date, route_geometry ? JSON.stringify(route_geometry) : null, share_code, waypoints ? JSON.stringify(waypoints) : null]
     );
     const trip = (await query('SELECT * FROM trips WHERE id=$1', [id])).rows[0];
     res.json(trip);

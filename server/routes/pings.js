@@ -131,6 +131,7 @@ router.get('/inbox', auth, async (req, res, next) => {
       FROM pings p JOIN users u ON u.id=p.sender_id JOIN trips t ON t.id=p.trip_id
       WHERE p.recipient_id=$1 ORDER BY p.created_at DESC
     `, [req.user.id]);
+    await query('UPDATE pings SET seen_at=NOW() WHERE recipient_id=$1 AND seen_at IS NULL', [req.user.id]);
     res.json(result.rows);
   } catch (err) { next(err); }
 });
@@ -139,7 +140,7 @@ router.get('/sent', auth, async (req, res, next) => {
   try {
     const result = await query(`
       SELECT p.*, u.name as recipient_name, u.city as recipient_city, u.city_lat as recipient_lat, u.city_lng as recipient_lng,
-        t.start_address, t.end_address, t.trip_date
+        p.seen_at, t.start_address, t.end_address, t.trip_date
       FROM pings p JOIN users u ON u.id=p.recipient_id JOIN trips t ON t.id=p.trip_id
       WHERE p.sender_id=$1 ORDER BY p.created_at DESC
     `, [req.user.id]);

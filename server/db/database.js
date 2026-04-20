@@ -80,6 +80,8 @@ async function init() {
   `);
 
   await query(`ALTER TABLE pings ADD COLUMN IF NOT EXISTS message TEXT;`);
+  await query(`ALTER TABLE pings ADD COLUMN IF NOT EXISTS seen_at TIMESTAMPTZ;`);
+  await query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS waypoints TEXT;`);
 
   await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE;`);
   await query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS share_code TEXT UNIQUE;`);

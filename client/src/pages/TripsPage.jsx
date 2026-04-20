@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
@@ -154,6 +154,38 @@ export default function TripsPage() {
   );
 }
 
+function SwipeToDismiss({ onDismiss, children }) {
+  const ref = useRef(null);
+  const startX = useRef(null);
+  const [offset, setOffset] = useState(0);
+  const [dismissing, setDismissing] = useState(false);
+
+  const onTouchStart = useCallback(e => { startX.current = e.touches[0].clientX; }, []);
+
+  const onTouchMove = useCallback(e => {
+    if (startX.current === null) return;
+    const dx = e.touches[0].clientX - startX.current;
+    if (dx < 0) setOffset(dx);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (offset < -80) {
+      setDismissing(true);
+      setTimeout(onDismiss, 250);
+    } else {
+      setOffset(0);
+    }
+    startX.current = null;
+  }, [offset, onDismiss]);
+
+  return (
+    <div ref={ref} onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      style={{ transform: `translateX(${dismissing ? -400 : offset}px)`, transition: dismissing ? 'transform 0.25s ease' : offset === 0 ? 'transform 0.2s ease' : 'none', position: 'relative' }}>
+      {children}
+    </div>
+  );
+}
+
 function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
   const [showChat, setShowChat] = useState(false);
   const [changingResponse, setChangingResponse] = useState(false);
@@ -163,6 +195,7 @@ function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
   }
 
   return (
+    <SwipeToDismiss onDismiss={handleDelete}>
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ flex: 1 }}>
@@ -229,10 +262,17 @@ function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
         <NavigateButtons ping={p} />
       )}
 
+      {p.direction === 'sent' && p.seen_at && (
+        <div style={{ fontSize: 11, color: 'var(--gray-400)', textAlign: 'right' }}>
+          Seen {timeAgo(p.seen_at)}
+        </div>
+      )}
+
       {showChat && p.status === 'yes' && (
         <PingChat pingId={p.id} currentUserId={currentUserId} />
       )}
     </div>
+    </SwipeToDismiss>
   );
 }
 

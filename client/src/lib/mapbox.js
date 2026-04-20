@@ -15,17 +15,18 @@ export async function geocode(query) {
 }
 
 // OSRM (OpenStreetMap Routing Machine) — free, no key needed
-export async function getRoute(startLng, startLat, endLng, endLat) {
+// points: array of {lng, lat}
+export async function getRoute(points) {
   try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+    const coords = points.map(p => `${p.lng},${p.lat}`).join(';');
+    const url = `https://router.project-osrm.org/route/v1/driving/${coords}?overview=full&geometries=geojson`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.routes && data.routes.length > 0) {
       return data.routes[0].geometry.coordinates;
     }
   } catch {}
-  // Fallback: straight line
-  return [[startLng, startLat], [endLng, endLat]];
+  return points.map(p => [p.lng, p.lat]);
 }
 
 export const MAPBOX_TOKEN = '';

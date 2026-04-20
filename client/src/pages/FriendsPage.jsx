@@ -226,6 +226,11 @@ function FriendCard({ friend: f, currentUserId, unreadCount, onChatOpen }) {
               {showAddress ? f.city : 'Tap to see location'}
             </button>
           )}
+          {parseInt(f.mutual_count) > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--orange)', marginTop: 2, fontWeight: 600 }}>
+              {f.mutual_count} mutual friend{f.mutual_count !== '1' ? 's' : ''}
+            </div>
+          )}
         </div>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <button
@@ -262,11 +267,16 @@ function DirectChat({ friendId, currentUserId }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
+  const [friendLastRead, setFriendLastRead] = useState(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
     api.getDirectMessages(friendId).then(setMessages).catch(() => {});
-    const t = setInterval(() => api.getDirectMessages(friendId).then(setMessages).catch(() => {}), 8000);
+    api.getSeenStatus(friendId).then(d => setFriendLastRead(d.last_read_at)).catch(() => {});
+    const t = setInterval(() => {
+      api.getDirectMessages(friendId).then(setMessages).catch(() => {});
+      api.getSeenStatus(friendId).then(d => setFriendLastRead(d.last_read_at)).catch(() => {});
+    }, 8000);
     return () => clearInterval(t);
   }, [friendId]);
 
@@ -289,8 +299,10 @@ function DirectChat({ friendId, currentUserId }) {
         {messages.length === 0 && (
           <div style={{ fontSize: 13, color: 'var(--gray-400)', textAlign: 'center', padding: '8px 0' }}>No messages yet</div>
         )}
-        {messages.map(m => {
+        {messages.map((m, idx) => {
           const mine = m.sender_id === currentUserId;
+          const isLastMine = mine && messages.slice(idx + 1).every(x => x.sender_id !== currentUserId);
+          const seenByFriend = isLastMine && friendLastRead && new Date(friendLastRead) >= new Date(m.created_at);
           return (
             <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
               <div style={{
@@ -304,6 +316,7 @@ function DirectChat({ friendId, currentUserId }) {
               {m.created_at && (
                 <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 2 }}>
                   {timeAgo(m.created_at)}
+                  {seenByFriend && <span style={{ marginLeft: 6, color: 'var(--orange)' }}>· Seen</span>}
                 </div>
               )}
             </div>
