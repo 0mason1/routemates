@@ -15,6 +15,7 @@ router.post('/signup', async (req, res, next) => {
   try {
     const { name, email, password, phone, city, city_lat, city_lng } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
+    if (!city || city_lat == null || city_lng == null) return res.status(400).json({ error: 'Home address is required' });
 
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length) return res.status(409).json({ error: 'Email already in use' });

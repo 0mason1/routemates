@@ -16,6 +16,10 @@ export default function AuthPage() {
   async function submit(e) {
     e.preventDefault();
     setError('');
+    if (mode === 'signup' && !homeAddress.lat) {
+      setError('Please select a home address from the dropdown.');
+      return;
+    }
     setLoading(true);
     try {
       const res = mode === 'login'
@@ -68,7 +72,7 @@ export default function AuthPage() {
 
         {mode === 'signup' && (
           <AddressInput
-            label="Home address (optional)"
+            label="Home address"
             value={homeAddress.text}
             onChange={t => setHomeAddress({ text: t, lat: null, lng: null })}
             onSelect={({ name, lat, lng }) => setHomeAddress({ text: name, lat, lng })}
