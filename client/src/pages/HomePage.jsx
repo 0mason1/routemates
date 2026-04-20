@@ -10,15 +10,27 @@ export default function HomePage() {
   const { user } = useAuth();
   const { toast, showToast } = useToast();
 
-  const [start, setStart] = useState({ text: '', lat: null, lng: null });
-  const [end, setEnd] = useState({ text: '', lat: null, lng: null });
-  const [date, setDate] = useState('');
-  const [routeCoords, setRouteCoords] = useState(null);
-  const [radius, setRadius] = useState(20);
-  const [nearby, setNearby] = useState(null);
+  function load(key, fallback) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  }
+
+  const [start, setStart] = useState(() => load('rm_hp_start', { text: '', lat: null, lng: null }));
+  const [end, setEnd] = useState(() => load('rm_hp_end', { text: '', lat: null, lng: null }));
+  const [date, setDate] = useState(() => load('rm_hp_date', ''));
+  const [routeCoords, setRouteCoords] = useState(() => load('rm_hp_route', null));
+  const [radius, setRadius] = useState(() => load('rm_hp_radius', 20));
+  const [nearby, setNearby] = useState(() => load('rm_hp_nearby', null));
   const [sentPings, setSentPings] = useState([]);
-  const [trip, setTrip] = useState(null);
+  const [trip, setTrip] = useState(() => load('rm_hp_trip', null));
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => { localStorage.setItem('rm_hp_start', JSON.stringify(start)); }, [start]);
+  useEffect(() => { localStorage.setItem('rm_hp_end', JSON.stringify(end)); }, [end]);
+  useEffect(() => { localStorage.setItem('rm_hp_date', JSON.stringify(date)); }, [date]);
+  useEffect(() => { localStorage.setItem('rm_hp_route', JSON.stringify(routeCoords)); }, [routeCoords]);
+  useEffect(() => { localStorage.setItem('rm_hp_radius', JSON.stringify(radius)); }, [radius]);
+  useEffect(() => { localStorage.setItem('rm_hp_nearby', JSON.stringify(nearby)); }, [nearby]);
+  useEffect(() => { localStorage.setItem('rm_hp_trip', JSON.stringify(trip)); }, [trip]);
 
   useEffect(() => {
     api.getSent().then(setSentPings).catch(() => {});
