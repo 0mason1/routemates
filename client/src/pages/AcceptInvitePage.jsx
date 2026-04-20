@@ -55,6 +55,11 @@ export default function AcceptInvitePage() {
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, background: 'linear-gradient(160deg, #F97316 0%, #F59E0B 100%)' }}>
+      <button onClick={() => navigate('/')} style={{ position: 'fixed', top: 16, right: 16, background: 'rgba(255,255,255,0.25)', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
       <div className="card" style={{ textAlign: 'center', width: '100%', maxWidth: 360 }}>
         <div style={{ fontSize: 56 }}>👋</div>
         <h2 style={{ marginTop: 12, fontSize: 22 }}>{inviter?.name} wants to be RouteMates!</h2>
@@ -63,9 +68,14 @@ export default function AcceptInvitePage() {
         {msg ? (
           <div style={{ marginTop: 20, padding: '14px', background: '#D1FAE5', borderRadius: 10, color: '#065F46', fontWeight: 600 }}>{msg}</div>
         ) : (
-          <button className="btn-primary" style={{ marginTop: 24 }} onClick={accept}>
-            Accept &amp; Connect
-          </button>
+          <>
+            <button className="btn-primary" style={{ marginTop: 24 }} onClick={accept}>
+              Accept &amp; Connect
+            </button>
+            <button onClick={() => navigate('/')} style={{ marginTop: 12, width: '100%', background: 'none', border: 'none', color: 'var(--gray-400)', fontSize: 14, cursor: 'pointer', padding: '8px 0' }}>
+              Maybe later
+            </button>
+          </>
         )}
       </div>
     </div>
