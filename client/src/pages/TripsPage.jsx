@@ -178,6 +178,10 @@ function PingCard({ ping: p, currentUserId, onRespond }) {
         </div>
       )}
 
+      {p.status === 'yes' && (
+        <NavigateButtons ping={p} />
+      )}
+
       {showChat && p.status === 'yes' && (
         <PingChat pingId={p.id} currentUserId={currentUserId} />
       )}
@@ -255,6 +259,50 @@ function PingChat({ pingId, currentUserId }) {
             <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
           </svg>
         </button>
+      </div>
+    </div>
+  );
+}
+
+function NavigateButtons({ ping: p }) {
+  const lat = p.direction === 'received' ? p.sender_lat : p.recipient_lat;
+  const lng = p.direction === 'received' ? p.sender_lng : p.recipient_lng;
+  const name = p.direction === 'received' ? p.sender_name : p.recipient_name;
+
+  if (!lat || !lng) return null;
+
+  const urls = {
+    apple: `maps://maps.apple.com/?daddr=${lat},${lng}&dirflg=d`,
+    google: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`,
+    waze: `https://waze.com/ul?ll=${lat},${lng}&navigate=yes`,
+  };
+
+  return (
+    <div>
+      <div style={{ fontSize: 12, color: 'var(--gray-400)', marginBottom: 8, fontWeight: 600 }}>
+        Navigate to {name}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        {[
+          { key: 'apple', label: '🍎 Apple Maps' },
+          { key: 'google', label: '🗺️ Google Maps' },
+          { key: 'waze', label: '🚗 Waze' },
+        ].map(({ key, label }) => (
+          <a
+            key={key}
+            href={urls[key]}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              flex: 1, textAlign: 'center', padding: '8px 4px', borderRadius: 10,
+              background: 'var(--gray-100)', color: 'var(--gray-800)',
+              fontSize: 12, fontWeight: 700, textDecoration: 'none',
+              border: '1px solid var(--gray-200)',
+            }}
+          >
+            {label}
+          </a>
+        ))}
       </div>
     </div>
   );

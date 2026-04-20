@@ -86,7 +86,8 @@ router.post('/', auth, async (req, res, next) => {
 router.get('/inbox', auth, async (req, res, next) => {
   try {
     const result = await query(`
-      SELECT p.*,u.name as sender_name,t.start_address,t.end_address,t.trip_date
+      SELECT p.*, u.name as sender_name, u.city as sender_city, u.city_lat as sender_lat, u.city_lng as sender_lng,
+        t.start_address, t.end_address, t.trip_date
       FROM pings p JOIN users u ON u.id=p.sender_id JOIN trips t ON t.id=p.trip_id
       WHERE p.recipient_id=$1 ORDER BY p.created_at DESC
     `, [req.user.id]);
@@ -97,7 +98,8 @@ router.get('/inbox', auth, async (req, res, next) => {
 router.get('/sent', auth, async (req, res, next) => {
   try {
     const result = await query(`
-      SELECT p.*,u.name as recipient_name,t.start_address,t.end_address,t.trip_date
+      SELECT p.*, u.name as recipient_name, u.city as recipient_city, u.city_lat as recipient_lat, u.city_lng as recipient_lng,
+        t.start_address, t.end_address, t.trip_date
       FROM pings p JOIN users u ON u.id=p.recipient_id JOIN trips t ON t.id=p.trip_id
       WHERE p.sender_id=$1 ORDER BY p.created_at DESC
     `, [req.user.id]);
