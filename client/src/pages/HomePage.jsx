@@ -87,14 +87,14 @@ export default function HomePage() {
           value={start.text}
           onChange={t => setStart(s => ({ ...s, text: t, lat: null, lng: null }))}
           onSelect={({ name, lat, lng }) => setStart({ text: name, lat, lng })}
-          placeholder="Auburn, AL"
+          placeholder="Select starting location"
         />
         <AddressInput
           label="To"
           value={end.text}
           onChange={t => setEnd(s => ({ ...s, text: t, lat: null, lng: null }))}
           onSelect={({ name, lat, lng }) => setEnd({ text: name, lat, lng })}
-          placeholder="Charlotte, NC"
+          placeholder="Select destination"
         />
         <div className="field">
           <label>Date</label>

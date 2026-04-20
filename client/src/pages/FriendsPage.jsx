@@ -97,7 +97,7 @@ export default function FriendsPage() {
               value={cityText}
               onChange={t => { setCityText(t); setCityCoords(null); }}
               onSelect={({ name, lat, lng }) => { setCityText(name); setCityCoords({ lat, lng }); }}
-              placeholder="Auburn, AL"
+              placeholder="Select your city"
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn-primary" style={{ flex: 1 }} onClick={saveCity} disabled={savingCity}>
