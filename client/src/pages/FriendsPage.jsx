@@ -124,29 +124,39 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {friends.map(f => (
-              <div key={f.id} className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{
-                  width: 42, height: 42, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--orange), var(--amber))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'white', fontWeight: 800, fontSize: 16, flexShrink: 0,
-                }}>
-                  {f.name[0].toUpperCase()}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
-                  <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>
-                    {f.city || 'No city set'}
-                  </div>
-                </div>
-              </div>
-            ))}
+            {friends.map(f => <FriendCard key={f.id} friend={f} />)}
           </div>
         )}
       </div>
 
       {toast && <div className="toast">{toast}</div>}
+    </div>
+  );
+}
+
+function FriendCard({ friend: f }) {
+  const [showAddress, setShowAddress] = useState(false);
+  return (
+    <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+      <div style={{
+        width: 42, height: 42, borderRadius: '50%',
+        background: 'linear-gradient(135deg, var(--orange), var(--amber))',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: 'white', fontWeight: 800, fontSize: 16, flexShrink: 0,
+      }}>
+        {f.name[0].toUpperCase()}
+      </div>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{f.name}</div>
+        {f.city && (
+          <button
+            onClick={() => setShowAddress(v => !v)}
+            style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 13, color: 'var(--gray-400)', marginTop: 2, textAlign: 'left' }}
+          >
+            {showAddress ? f.city : 'Tap to see location'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }

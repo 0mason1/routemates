@@ -42,7 +42,7 @@ async function sendSmsToUser(phone, message) {
 
 router.post('/', auth, async (req, res, next) => {
   try {
-    const { trip_id, recipient_id } = req.body;
+    const { trip_id, recipient_id, message } = req.body;
     if (!trip_id || !recipient_id) return res.status(400).json({ error: 'trip_id and recipient_id required' });
 
     const trip = (await query('SELECT * FROM trips WHERE id=$1 AND user_id=$2', [trip_id, req.user.id])).rows[0];
@@ -52,7 +52,7 @@ router.post('/', auth, async (req, res, next) => {
     if (existing) return res.status(409).json({ error: 'Ping already sent' });
 
     const id = uuidv4();
-    await query('INSERT INTO pings (id,trip_id,sender_id,recipient_id) VALUES ($1,$2,$3,$4)', [id, trip_id, req.user.id, recipient_id]);
+    await query('INSERT INTO pings (id,trip_id,sender_id,recipient_id,message) VALUES ($1,$2,$3,$4,$5)', [id, trip_id, req.user.id, recipient_id, message || null]);
 
     const ping = (await query(`
       SELECT p.*,
@@ -67,15 +67,17 @@ router.post('/', auth, async (req, res, next) => {
     `, [id])).rows[0];
 
     const route = `${ping.start_address?.split(',')[0]} → ${ping.end_address?.split(',')[0]}`;
-    const msg = `${ping.sender_name} wants to be RouteMates on their trip: ${route}. Reply at https://routemates.onrender.com`;
+    const smsMsg = message
+      ? `${ping.sender_name} wants to meet up on their trip ${route}: "${message}" — Reply at https://routemates.onrender.com`
+      : `${ping.sender_name} wants to be RouteMates on their trip: ${route}. Reply at https://routemates.onrender.com`;
 
     sendPushToUser(recipient_id, {
-      title: `${ping.sender_name} sent you a ping! 🏓`,
-      body: route,
-      url: '/',
+      title: `${ping.sender_name} wants to meet up! 🏓`,
+      body: message || route,
+      url: '/trips',
     });
 
-    sendSmsToUser(ping.recipient_phone, msg);
+    sendSmsToUser(ping.recipient_phone, smsMsg);
 
     res.json(ping);
   } catch (err) { next(err); }
@@ -111,7 +113,6 @@ router.put('/:id/respond', auth, async (req, res, next) => {
     if (!ping) return res.status(404).json({ error: 'Ping not found' });
     await query('UPDATE pings SET status=$1, updated_at=NOW() WHERE id=$2', [status, req.params.id]);
 
-    // Notify sender
     const detail = (await query(`
       SELECT p.sender_id, r.name as recipient_name, t.start_address, t.end_address
       FROM pings p JOIN users r ON r.id=p.recipient_id JOIN trips t ON t.id=p.trip_id
@@ -122,11 +123,47 @@ router.put('/:id/respond', auth, async (req, res, next) => {
       sendPushToUser(detail.sender_id, {
         title: `${detail.recipient_name} replied: ${label}`,
         body: `${detail.start_address?.split(',')[0]} → ${detail.end_address?.split(',')[0]}`,
-        url: '/',
+        url: '/trips',
       });
     }
 
     res.json({ success: true, status });
+  } catch (err) { next(err); }
+});
+
+router.get('/:id/messages', auth, async (req, res, next) => {
+  try {
+    const ping = (await query('SELECT * FROM pings WHERE id=$1 AND (sender_id=$2 OR recipient_id=$2)', [req.params.id, req.user.id])).rows[0];
+    if (!ping) return res.status(404).json({ error: 'Not found' });
+    const msgs = (await query(`
+      SELECT m.*, u.name as sender_name
+      FROM ping_messages m JOIN users u ON u.id=m.sender_id
+      WHERE m.ping_id=$1 ORDER BY m.created_at ASC
+    `, [req.params.id])).rows;
+    res.json(msgs);
+  } catch (err) { next(err); }
+});
+
+router.post('/:id/messages', auth, async (req, res, next) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+    const ping = (await query('SELECT * FROM pings WHERE id=$1 AND (sender_id=$2 OR recipient_id=$2)', [req.params.id, req.user.id])).rows[0];
+    if (!ping) return res.status(404).json({ error: 'Not found' });
+    if (ping.status !== 'yes') return res.status(400).json({ error: 'Can only message on accepted pings' });
+
+    const id = uuidv4();
+    await query('INSERT INTO ping_messages (id,ping_id,sender_id,message) VALUES ($1,$2,$3,$4)', [id, req.params.id, req.user.id, message.trim()]);
+
+    const otherId = ping.sender_id === req.user.id ? ping.recipient_id : ping.sender_id;
+    const sender = (await query('SELECT name FROM users WHERE id=$1', [req.user.id])).rows[0];
+    sendPushToUser(otherId, {
+      title: `${sender.name} sent a message`,
+      body: message.trim(),
+      url: '/trips',
+    });
+
+    res.json({ id, ping_id: req.params.id, sender_id: req.user.id, sender_name: sender.name, message: message.trim(), created_at: new Date() });
   } catch (err) { next(err); }
 });
 

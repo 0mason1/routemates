@@ -23,6 +23,9 @@ export default function HomePage() {
   const [sentPings, setSentPings] = useState([]);
   const [trip, setTrip] = useState(() => load('rm_hp_trip', null));
   const [loading, setLoading] = useState(false);
+  const [pingModal, setPingModal] = useState(null);
+  const [pingNote, setPingNote] = useState('');
+  const [pingSending, setPingSending] = useState(false);
 
   useEffect(() => { localStorage.setItem('rm_hp_start', JSON.stringify(start)); }, [start]);
   useEffect(() => { localStorage.setItem('rm_hp_end', JSON.stringify(end)); }, [end]);
@@ -73,14 +76,24 @@ export default function HomePage() {
     } catch {}
   }
 
-  async function handlePing(friend) {
+  function openPingModal(friend) {
     if (!trip) return;
+    setPingModal(friend);
+    setPingNote('');
+  }
+
+  async function sendPing() {
+    if (!trip || !pingModal) return;
+    setPingSending(true);
     try {
-      await api.sendPing({ trip_id: trip.id, recipient_id: friend.id });
-      setSentPings(prev => [...prev, { recipient_id: friend.id }]);
-      showToast(`Ping sent to ${friend.name}! 🏓`);
+      await api.sendPing({ trip_id: trip.id, recipient_id: pingModal.id, message: pingNote.trim() || undefined });
+      setSentPings(prev => [...prev, { recipient_id: pingModal.id }]);
+      showToast(`Ping sent to ${pingModal.name}! 🏓`);
+      setPingModal(null);
     } catch (err) {
       showToast(err.message);
+    } finally {
+      setPingSending(false);
     }
   }
 
@@ -131,7 +144,7 @@ export default function HomePage() {
               [trip?.end_lng, trip?.end_lat],
             ]}
             nearbyFriends={nearby}
-            onPing={handlePing}
+            onPing={openPingModal}
             sentPings={sentPings}
           />
 
@@ -175,7 +188,7 @@ export default function HomePage() {
                         {pinged ? (
                           <span style={{ fontSize: 13, color: 'var(--gray-400)', fontStyle: 'italic' }}>Pinged ✓</span>
                         ) : (
-                          <button className="btn-secondary" onClick={() => handlePing(f)}>Ping</button>
+                          <button className="btn-secondary" onClick={() => openPingModal(f)}>Ping</button>
                         )}
                       </div>
                     );
@@ -188,6 +201,34 @@ export default function HomePage() {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+
+      {pingModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 300, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
+          onClick={e => { if (e.target === e.currentTarget) setPingModal(null); }}>
+          <div style={{ background: 'white', borderRadius: '20px 20px 0 0', padding: '24px 20px 36px', width: '100%', maxWidth: 480 }}>
+            <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 4 }}>Ping {pingModal.name} 🏓</div>
+            <div style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 16 }}>
+              {trip?.start_address?.split(',')[0]} → {trip?.end_address?.split(',')[0]}
+            </div>
+            <div className="field">
+              <label>Add a note (optional)</label>
+              <textarea
+                value={pingNote}
+                onChange={e => setPingNote(e.target.value)}
+                placeholder="e.g. Leaving at 8am, want to grab coffee on the way?"
+                rows={3}
+                style={{ resize: 'none', fontSize: 15 }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setPingModal(null)}>Cancel</button>
+              <button className="btn-primary" style={{ flex: 2 }} onClick={sendPing} disabled={pingSending}>
+                {pingSending ? <span className="spinner" /> : 'Send Ping'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

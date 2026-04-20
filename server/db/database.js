@@ -69,7 +69,17 @@ async function init() {
       subscription JSONB NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
+
+    CREATE TABLE IF NOT EXISTS ping_messages (
+      id TEXT PRIMARY KEY,
+      ping_id TEXT NOT NULL REFERENCES pings(id) ON DELETE CASCADE,
+      sender_id TEXT NOT NULL REFERENCES users(id),
+      message TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
   `);
+
+  await query(`ALTER TABLE pings ADD COLUMN IF NOT EXISTS message TEXT;`);
 }
 
 module.exports = { query, init };

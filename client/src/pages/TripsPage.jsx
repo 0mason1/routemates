@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { api } from '../lib/api';
+import { useAuth } from '../hooks/useAuth';
 
 function formatDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -10,6 +11,7 @@ function isPast(d) {
 }
 
 export default function TripsPage() {
+  const { user } = useAuth();
   const [trips, setTrips] = useState([]);
   const [pings, setPings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,7 @@ export default function TripsPage() {
   const upcoming = trips.filter(t => !isPast(t.trip_date));
   const past = trips.filter(t => isPast(t.trip_date));
   const inbox = pings.filter(p => p.direction === 'received');
+  const allPings = pings;
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
@@ -59,9 +62,7 @@ export default function TripsPage() {
               background: tab === t ? 'white' : 'transparent',
               color: tab === t ? 'var(--orange)' : 'var(--gray-600)',
               boxShadow: tab === t ? 'var(--shadow)' : 'none',
-              transition: 'all 0.15s',
-              border: 'none',
-              position: 'relative',
+              transition: 'all 0.15s', border: 'none', position: 'relative',
             }}
           >
             {t.charAt(0).toUpperCase() + t.slice(1)}
@@ -104,42 +105,157 @@ export default function TripsPage() {
 
       {tab === 'pings' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {inbox.length === 0 ? (
+          {allPings.length === 0 ? (
             <div className="empty">
               <div className="empty-icon">🏓</div>
               <h3>No pings yet</h3>
               <p>When friends ping you, they'll show up here</p>
             </div>
-          ) : inbox.map(p => (
-            <div key={p.id} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 15 }}>{p.sender_name} is driving through your area</div>
-                <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 3 }}>
-                  {p.start_address} → {p.end_address}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>{formatDate(p.trip_date)}</div>
-              </div>
-              {p.status === 'pending' ? (
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button className="btn-secondary" style={{ flex: 1, background: '#D1FAE5', color: '#065F46' }} onClick={() => respond(p.id, 'yes')}>
-                    Yes! 🙌
-                  </button>
-                  <button className="btn-secondary" style={{ flex: 1 }} onClick={() => respond(p.id, 'maybe')}>
-                    Maybe
-                  </button>
-                  <button className="btn-secondary" style={{ flex: 1, background: '#FEE2E2', color: '#991B1B' }} onClick={() => respond(p.id, 'no')}>
-                    Can't
-                  </button>
-                </div>
-              ) : (
-                <span className={`badge badge-${p.status}`}>
-                  {p.status === 'yes' ? 'You said yes! 🎉' : p.status === 'maybe' ? 'Maybe' : "Can't make it"}
-                </span>
-              )}
-            </div>
+          ) : allPings.map(p => (
+            <PingCard key={p.id} ping={p} currentUserId={user?.id} onRespond={respond} />
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+function PingCard({ ping: p, currentUserId, onRespond }) {
+  const [showChat, setShowChat] = useState(false);
+
+  return (
+    <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>
+            {p.direction === 'received'
+              ? `${p.sender_name} is driving through your area`
+              : `You pinged ${p.recipient_name}`}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 3 }}>
+            {p.start_address?.split(',')[0]} → {p.end_address?.split(',')[0]}
+          </div>
+          <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>{formatDate(p.trip_date)}</div>
+        </div>
+        <span style={{ fontSize: 12, color: 'var(--gray-400)', whiteSpace: 'nowrap', marginTop: 2 }}>
+          {p.direction === 'received' ? 'Received' : 'Sent'}
+        </span>
+      </div>
+
+      {p.message && (
+        <div style={{ background: 'var(--gray-100)', borderRadius: 10, padding: '10px 12px', fontSize: 14, color: 'var(--gray-700)', fontStyle: 'italic' }}>
+          "{p.message}"
+        </div>
+      )}
+
+      {p.direction === 'received' && p.status === 'pending' && (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn-secondary" style={{ flex: 1, background: '#D1FAE5', color: '#065F46' }} onClick={() => onRespond(p.id, 'yes')}>
+            Yes! 🙌
+          </button>
+          <button className="btn-secondary" style={{ flex: 1 }} onClick={() => onRespond(p.id, 'maybe')}>
+            Maybe
+          </button>
+          <button className="btn-secondary" style={{ flex: 1, background: '#FEE2E2', color: '#991B1B' }} onClick={() => onRespond(p.id, 'no')}>
+            Can't
+          </button>
+        </div>
+      )}
+
+      {p.status !== 'pending' && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span className={`badge badge-${p.status}`}>
+            {p.status === 'yes' ? (p.direction === 'received' ? 'You said yes! 🎉' : 'They said yes! 🎉') : p.status === 'maybe' ? 'Maybe' : "Can't make it"}
+          </span>
+          {p.status === 'yes' && (
+            <button
+              onClick={() => setShowChat(v => !v)}
+              style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', background: 'none', border: 'none', cursor: 'pointer' }}
+            >
+              {showChat ? 'Hide chat' : 'Open chat 💬'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {showChat && p.status === 'yes' && (
+        <PingChat pingId={p.id} currentUserId={currentUserId} />
+      )}
+    </div>
+  );
+}
+
+function PingChat({ pingId, currentUserId }) {
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [sending, setSending] = useState(false);
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    api.getPingMessages(pingId).then(setMessages).catch(() => {});
+    const t = setInterval(() => api.getPingMessages(pingId).then(setMessages).catch(() => {}), 10000);
+    return () => clearInterval(t);
+  }, [pingId]);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  async function send() {
+    if (!text.trim() || sending) return;
+    setSending(true);
+    try {
+      const msg = await api.sendPingMessage(pingId, text.trim());
+      setMessages(ms => [...ms, msg]);
+      setText('');
+    } catch {}
+    setSending(false);
+  }
+
+  return (
+    <div style={{ borderTop: '1px solid var(--gray-100)', paddingTop: 12 }}>
+      <div style={{ maxHeight: 220, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 10 }}>
+        {messages.length === 0 && (
+          <div style={{ fontSize: 13, color: 'var(--gray-400)', textAlign: 'center', padding: '8px 0' }}>
+            No messages yet — say hi!
+          </div>
+        )}
+        {messages.map(m => {
+          const mine = m.sender_id === currentUserId;
+          return (
+            <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+              {!mine && <div style={{ fontSize: 11, color: 'var(--gray-400)', marginBottom: 2 }}>{m.sender_name}</div>}
+              <div style={{
+                background: mine ? 'var(--orange)' : 'var(--gray-100)',
+                color: mine ? 'white' : 'var(--gray-800)',
+                borderRadius: mine ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                padding: '8px 12px', fontSize: 14, maxWidth: '80%',
+              }}>
+                {m.message}
+              </div>
+            </div>
+          );
+        })}
+        <div ref={bottomRef} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input
+          value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && send()}
+          placeholder="Send an update or ETA..."
+          style={{ flex: 1, borderRadius: 99, padding: '10px 16px', fontSize: 14, border: '1.5px solid var(--gray-200)' }}
+        />
+        <button onClick={send} disabled={sending || !text.trim()} style={{
+          background: 'var(--orange)', color: 'white', border: 'none',
+          borderRadius: '50%', width: 40, height: 40, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
