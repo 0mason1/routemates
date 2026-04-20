@@ -284,7 +284,7 @@ function PingChat({ pingId, currentUserId }) {
 
   useEffect(() => {
     api.getPingMessages(pingId).then(setMessages).catch(() => {});
-    const t = setInterval(() => api.getPingMessages(pingId).then(setMessages).catch(() => {}), 10000);
+    const t = setInterval(() => api.getPingMessages(pingId).then(setMessages).catch(() => {}), 2000);
     return () => clearInterval(t);
   }, [pingId]);
 
@@ -445,43 +445,135 @@ function NavigateButtons({ ping: p }) {
   );
 }
 
+function daysUntil(dateStr) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const d = new Date(dateStr + 'T00:00:00'); d.setHours(0,0,0,0);
+  const diff = Math.round((d - today) / 86400000);
+  if (diff === 0) return 'Today';
+  if (diff === 1) return 'Tomorrow';
+  if (diff > 1) return `In ${diff} days`;
+  return null;
+}
+
 function TripCard({ trip, past, onShare, onDelete }) {
+  const [deleted, setDeleted] = useState(false);
+
   async function handleDelete() {
     if (!window.confirm('Cancel this trip?')) return;
-    try { await api.deleteTrip(trip.id); onDelete(trip.id); } catch {}
+    setDeleted(true);
+    try { await api.deleteTrip(trip.id); onDelete(trip.id); } catch { setDeleted(false); }
   }
 
+  const until = !past && daysUntil(trip.trip_date);
+  let waypoints = [];
+  try { if (trip.waypoints) waypoints = JSON.parse(trip.waypoints); } catch {}
+
   return (
-    <div className="trip-card" style={{ opacity: past ? 0.7 : 1 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <div className="trip-route" style={{ flex: 1, marginBottom: 0 }}>
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14 }}>
-            {trip.start_address.split(',')[0]}
-          </span>
-          <span className="trip-arrow">→</span>
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 14, textAlign: 'right' }}>
-            {trip.end_address.split(',')[0]}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-          {trip.share_code && (
-            <button onClick={() => onShare(trip.share_code)} title="Copy share link"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: '0 4px' }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+    <div style={{
+      background: 'white', borderRadius: 18, overflow: 'hidden',
+      boxShadow: 'var(--shadow)', opacity: deleted ? 0.4 : past ? 0.65 : 1,
+      transition: 'opacity 0.2s',
+    }}>
+      {/* Orange accent top bar */}
+      <div style={{ background: past ? 'var(--gray-200)' : 'linear-gradient(90deg, #F97316, #F59E0B)', height: 4 }} />
+
+      <div style={{ padding: '16px 16px 14px' }}>
+        {/* Date row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              background: past ? 'var(--gray-100)' : '#FFF7ED',
+              border: `1.5px solid ${past ? 'var(--gray-200)' : 'var(--orange-light)'}`,
+              borderRadius: 10, padding: '4px 10px',
+              fontSize: 12, fontWeight: 800,
+              color: past ? 'var(--gray-400)' : 'var(--orange)',
+            }}>
+              {formatDate(trip.trip_date)}
+            </div>
+            {until && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: until === 'Today' ? '#16A34A' : until === 'Tomorrow' ? 'var(--orange)' : 'var(--gray-400)' }}>
+                {until}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 2 }}>
+            {trip.share_code && (
+              <button onClick={() => onShare(trip.share_code)} title="Copy share link"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: '4px 6px', borderRadius: 8 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </button>
+            )}
+            <button onClick={handleDelete} title="Cancel trip"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-300)', padding: '4px 6px', borderRadius: 8 }}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
               </svg>
             </button>
+          </div>
+        </div>
+
+        {/* Route stops */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {/* Start */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: past ? 'var(--gray-300)' : 'var(--orange)', border: '2px solid white', boxShadow: `0 0 0 2px ${past ? 'var(--gray-300)' : 'var(--orange)'}` }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {trip.start_address.split(',')[0]}
+            </div>
+          </div>
+
+          {/* Connector + waypoints */}
+          {waypoints.length > 0 ? waypoints.map((wp, i) => (
+            <div key={i}>
+              <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+                  <div style={{ width: 2, flex: 1, background: 'repeating-linear-gradient(to bottom, var(--gray-200) 0px, var(--gray-200) 4px, transparent 4px, transparent 8px)', minHeight: 12 }} />
+                </div>
+                <div style={{ flex: 1 }} />
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'white', border: '2px solid var(--gray-300)' }} />
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--gray-600)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {wp.text?.split(',')[0]}
+                </div>
+              </div>
+            </div>
+          )) : (
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+                <div style={{ width: 2, height: 18, background: 'repeating-linear-gradient(to bottom, var(--gray-200) 0px, var(--gray-200) 4px, transparent 4px, transparent 8px)' }} />
+              </div>
+              <div style={{ flex: 1 }} />
+            </div>
           )}
-          <button onClick={handleDelete} title="Cancel trip"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-300)', padding: '0 4px' }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
-            </svg>
-          </button>
+
+          {/* Dashed connector before end */}
+          {waypoints.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'stretch' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+                <div style={{ width: 2, height: 14, background: 'repeating-linear-gradient(to bottom, var(--gray-200) 0px, var(--gray-200) 4px, transparent 4px, transparent 8px)' }} />
+              </div>
+            </div>
+          )}
+
+          {/* End */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: 20, flexShrink: 0 }}>
+              <div style={{ width: 10, height: 10, borderRadius: 3, background: past ? 'var(--gray-300)' : '#1D4ED8', border: '2px solid white', boxShadow: `0 0 0 2px ${past ? 'var(--gray-300)' : '#1D4ED8'}` }} />
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--gray-800)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {trip.end_address.split(',')[0]}
+            </div>
+          </div>
         </div>
       </div>
-      <div className="trip-date">{formatDate(trip.trip_date)}</div>
     </div>
   );
 }

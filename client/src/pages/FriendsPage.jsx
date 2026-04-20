@@ -276,7 +276,7 @@ function DirectChat({ friendId, currentUserId }) {
     const t = setInterval(() => {
       api.getDirectMessages(friendId).then(setMessages).catch(() => {});
       api.getSeenStatus(friendId).then(d => setFriendLastRead(d.last_read_at)).catch(() => {});
-    }, 8000);
+    }, 2000);
     return () => clearInterval(t);
   }, [friendId]);
 
