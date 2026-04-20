@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
+import AddressInput from '../components/AddressInput';
 
 export default function AuthPage() {
   const { login } = useAuth();
   const [mode, setMode] = useState('login');
   const [form, setForm] = useState({ name: '', email: '', password: '', phone: '' });
+  const [homeAddress, setHomeAddress] = useState({ text: '', lat: null, lng: null });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +20,12 @@ export default function AuthPage() {
     try {
       const res = mode === 'login'
         ? await api.login({ email: form.email, password: form.password })
-        : await api.signup({ name: form.name, email: form.email, password: form.password, phone: form.phone });
+        : await api.signup({
+            name: form.name, email: form.email, password: form.password, phone: form.phone,
+            city: homeAddress.text || null,
+            city_lat: homeAddress.lat,
+            city_lng: homeAddress.lng,
+          });
       login(res.token, res.user);
     } catch (err) {
       setError(err.message);
@@ -57,6 +64,16 @@ export default function AuthPage() {
             <label>Phone (optional)</label>
             <input type="tel" value={form.phone} onChange={e => set('phone', e.target.value)} placeholder="+1 555 000 0000" />
           </div>
+        )}
+
+        {mode === 'signup' && (
+          <AddressInput
+            label="Home address (optional)"
+            value={homeAddress.text}
+            onChange={t => setHomeAddress({ text: t, lat: null, lng: null })}
+            onSelect={({ name, lat, lng }) => setHomeAddress({ text: name, lat, lng })}
+            placeholder="123 Main St, City, State"
+          />
         )}
 
         {error && (

@@ -13,7 +13,7 @@ function makeToken(user) {
 
 router.post('/signup', async (req, res, next) => {
   try {
-    const { name, email, password, phone } = req.body;
+    const { name, email, password, phone, city, city_lat, city_lng } = req.body;
     if (!name || !email || !password) return res.status(400).json({ error: 'name, email, password required' });
 
     const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
@@ -24,8 +24,8 @@ router.post('/signup', async (req, res, next) => {
     const password_hash = bcrypt.hashSync(password, 10);
 
     await query(
-      'INSERT INTO users (id, name, email, password_hash, phone, invite_code) VALUES ($1,$2,$3,$4,$5,$6)',
-      [id, name, email, password_hash, phone || null, invite_code]
+      'INSERT INTO users (id, name, email, password_hash, phone, invite_code, city, city_lat, city_lng) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [id, name, email, password_hash, phone || null, invite_code, city || null, city_lat || null, city_lng || null]
     );
 
     const user = (await query('SELECT id,name,email,phone,city,city_lat,city_lng,invite_code FROM users WHERE id=$1', [id])).rows[0];
