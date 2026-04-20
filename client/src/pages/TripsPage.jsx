@@ -120,7 +120,7 @@ export default function TripsPage() {
               <h3>No upcoming trips</h3>
               <p>Plan a trip from the home screen</p>
             </div>
-          ) : upcoming.map(t => <TripCard key={t.id} trip={t} onShare={handleShare} />)}
+          ) : upcoming.map(t => <TripCard key={t.id} trip={t} onShare={handleShare} onDelete={id => setTrips(ts => ts.filter(t => t.id !== id))} />)}
         </div>
       )}
 
@@ -131,7 +131,7 @@ export default function TripsPage() {
               <div className="empty-icon">📍</div>
               <h3>No past trips</h3>
             </div>
-          ) : past.map(t => <TripCard key={t.id} trip={t} past onShare={handleShare} />)}
+          ) : past.map(t => <TripCard key={t.id} trip={t} past onShare={handleShare} onDelete={id => setTrips(ts => ts.filter(t => t.id !== id))} />)}
         </div>
       )}
 
@@ -156,6 +156,7 @@ export default function TripsPage() {
 
 function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
   const [showChat, setShowChat] = useState(false);
+  const [changingResponse, setChangingResponse] = useState(false);
 
   async function handleDelete() {
     try { await api.deletePing(p.id); onDelete(p.id); } catch {}
@@ -188,33 +189,39 @@ function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
         </div>
       )}
 
-      {p.direction === 'received' && p.status === 'pending' && (
+      {p.direction === 'received' && (p.status === 'pending' || changingResponse) && (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button className="btn-secondary" style={{ flex: 1, background: '#D1FAE5', color: '#065F46' }} onClick={() => onRespond(p.id, 'yes')}>
+          <button className="btn-secondary" style={{ flex: 1, background: '#D1FAE5', color: '#065F46' }} onClick={() => { onRespond(p.id, 'yes'); setChangingResponse(false); }}>
             Yes! 🙌
           </button>
-          <button className="btn-secondary" style={{ flex: 1 }} onClick={() => onRespond(p.id, 'maybe')}>
+          <button className="btn-secondary" style={{ flex: 1 }} onClick={() => { onRespond(p.id, 'maybe'); setChangingResponse(false); }}>
             Maybe
           </button>
-          <button className="btn-secondary" style={{ flex: 1, background: '#FEE2E2', color: '#991B1B' }} onClick={() => onRespond(p.id, 'no')}>
+          <button className="btn-secondary" style={{ flex: 1, background: '#FEE2E2', color: '#991B1B' }} onClick={() => { onRespond(p.id, 'no'); setChangingResponse(false); }}>
             Can't
           </button>
         </div>
       )}
 
-      {p.status !== 'pending' && (
+      {p.status !== 'pending' && !changingResponse && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span className={`badge badge-${p.status}`}>
             {p.status === 'yes' ? (p.direction === 'received' ? 'You said yes! 🎉' : 'They said yes! 🎉') : p.status === 'maybe' ? 'Maybe' : "Can't make it"}
           </span>
-          {p.status === 'yes' && (
-            <button
-              onClick={() => setShowChat(v => !v)}
-              style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', background: 'none', border: 'none', cursor: 'pointer' }}
-            >
-              {showChat ? 'Hide chat' : 'Open chat 💬'}
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {p.direction === 'received' && (
+              <button onClick={() => setChangingResponse(true)}
+                style={{ fontSize: 12, color: 'var(--gray-400)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                Change
+              </button>
+            )}
+            {p.status === 'yes' && (
+              <button onClick={() => setShowChat(v => !v)}
+                style={{ fontSize: 13, fontWeight: 700, color: 'var(--orange)', background: 'none', border: 'none', cursor: 'pointer' }}>
+                {showChat ? 'Hide chat' : 'Chat 💬'}
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -398,7 +405,12 @@ function NavigateButtons({ ping: p }) {
   );
 }
 
-function TripCard({ trip, past, onShare }) {
+function TripCard({ trip, past, onShare, onDelete }) {
+  async function handleDelete() {
+    if (!window.confirm('Cancel this trip?')) return;
+    try { await api.deleteTrip(trip.id); onDelete(trip.id); } catch {}
+  }
+
   return (
     <div className="trip-card" style={{ opacity: past ? 0.7 : 1 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
@@ -411,18 +423,23 @@ function TripCard({ trip, past, onShare }) {
             {trip.end_address.split(',')[0]}
           </span>
         </div>
-        {trip.share_code && (
-          <button
-            onClick={() => onShare(trip.share_code)}
-            title="Copy share link"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: '0 0 0 8px', flexShrink: 0 }}
-          >
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+          {trip.share_code && (
+            <button onClick={() => onShare(trip.share_code)} title="Copy share link"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-400)', padding: '0 4px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            </button>
+          )}
+          <button onClick={handleDelete} title="Cancel trip"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-300)', padding: '0 4px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" />
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" /><line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
             </svg>
           </button>
-        )}
+        </div>
       </div>
       <div className="trip-date">{formatDate(trip.trip_date)}</div>
     </div>

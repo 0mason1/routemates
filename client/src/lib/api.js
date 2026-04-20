@@ -36,6 +36,7 @@ export const api = {
   getUnreadCounts: () => request('/messages/unread'),
   markMessagesRead: (friendId) => request(`/messages/${friendId}/read`, { method: 'POST' }),
 
+  deleteTrip: (id) => request(`/trips/${id}`, { method: 'DELETE' }),
   getSharedTrip: (code) => request(`/trips/share/${code}`),
 
   sendPing: (body) => request('/pings', { method: 'POST', body: JSON.stringify(body) }),

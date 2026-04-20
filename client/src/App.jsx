@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { api } from './lib/api';
 import NotificationBell from './components/NotificationBell';
 import { registerPush } from './lib/push';
+import Onboarding from './components/Onboarding';
 
 function NavIcon({ path, label, icon }) {
   const location = useLocation();
@@ -125,6 +126,13 @@ function InnerAppWrapper() {
     }
   }, [auth.user]);
 
+  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('rm_onboarded'));
+
+  function finishOnboarding() {
+    localStorage.setItem('rm_onboarded', '1');
+    setShowOnboarding(false);
+  }
+
   if (auth.loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
       <div style={{ textAlign: 'center' }}>
@@ -167,6 +175,7 @@ function InnerAppWrapper() {
   return (
     <AuthContext.Provider value={auth}>
       <div className="app">
+        {showOnboarding && <Onboarding onDone={finishOnboarding} />}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'white', borderBottom: '1px solid var(--gray-200)', flexShrink: 0 }}>
           <span style={{ fontWeight: 800, fontSize: 18 }}>🚗 RouteMates</span>
           <NotificationBell />

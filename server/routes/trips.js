@@ -64,6 +64,15 @@ router.get('/', auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.delete('/:id', auth, async (req, res, next) => {
+  try {
+    const trip = (await query('SELECT id FROM trips WHERE id=$1 AND user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    await query('DELETE FROM trips WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id/nearby', auth, async (req, res, next) => {
   try {
     const trip = (await query('SELECT * FROM trips WHERE id=$1', [req.params.id])).rows[0];

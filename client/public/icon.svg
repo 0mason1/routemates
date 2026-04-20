@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#F97316"/>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FB923C"/>
+      <stop offset="100%" stop-color="#EA580C"/>
+    </linearGradient>
+  </defs>
+  <!-- Road -->
+  <rect x="196" y="310" width="120" height="80" rx="8" fill="rgba(255,255,255,0.2)"/>
+  <rect x="248" y="318" width="16" height="20" rx="4" fill="rgba(255,255,255,0.5)"/>
+  <rect x="248" y="350" width="16" height="20" rx="4" fill="rgba(255,255,255,0.5)"/>
+  <!-- Car body -->
+  <path d="M140 290 L172 210 Q180 192 200 192 L312 192 Q332 192 340 210 L372 290 L372 330 Q372 342 360 342 L152 342 Q140 342 140 330 Z" fill="white"/>
+  <!-- Windshield -->
+  <path d="M196 192 L216 148 Q222 136 236 136 L276 136 Q290 136 296 148 L316 192 Z" fill="rgba(249,115,22,0.35)"/>
+  <!-- Windows side -->
+  <rect x="172" y="210" width="60" height="52" rx="6" fill="rgba(249,115,22,0.25)"/>
+  <rect x="280" y="210" width="60" height="52" rx="6" fill="rgba(249,115,22,0.25)"/>
+  <!-- Wheels -->
+  <circle cx="192" cy="348" r="38" fill="#1F2937"/>
+  <circle cx="192" cy="348" r="22" fill="#F3F4F6"/>
+  <circle cx="320" cy="348" r="38" fill="#1F2937"/>
+  <circle cx="320" cy="348" r="22" fill="#F3F4F6"/>
+  <!-- Headlights -->
+  <rect x="148" y="278" width="28" height="16" rx="6" fill="#FEF3C7"/>
+  <rect x="336" y="278" width="28" height="16" rx="6" fill="#FEF3C7"/>
+</svg>
