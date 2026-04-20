@@ -48,7 +48,7 @@ router.post('/', auth, async (req, res, next) => {
     const trip = (await query('SELECT * FROM trips WHERE id=$1 AND user_id=$2', [trip_id, req.user.id])).rows[0];
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
-    const existing = (await query('SELECT id FROM pings WHERE trip_id=$1 AND sender_id=$2 AND recipient_id=$3', [trip_id, req.user.id, recipient_id])).rows[0];
+    const existing = (await query('SELECT id FROM pings WHERE trip_id=$1 AND sender_id=$2 AND recipient_id=$3 AND status=$4', [trip_id, req.user.id, recipient_id, 'pending'])).rows[0];
     if (existing) return res.status(409).json({ error: 'Ping already sent' });
 
     const id = uuidv4();
