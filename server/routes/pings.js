@@ -40,6 +40,25 @@ async function sendSmsToUser(phone, message) {
   }
 }
 
+async function sendEmail(to, subject, html) {
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !to) return;
+  try {
+    const nodemailer = require('nodemailer');
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: Number(process.env.SMTP_PORT) || 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+    await transporter.sendMail({
+      from: `RouteMates <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
+      to, subject, html,
+    });
+  } catch (e) {
+    console.error('Email error:', e.message);
+  }
+}
+
 router.post('/', auth, async (req, res, next) => {
   try {
     const { trip_id, recipient_id, message } = req.body;
@@ -57,7 +76,7 @@ router.post('/', auth, async (req, res, next) => {
     const ping = (await query(`
       SELECT p.*,
         s.name as sender_name, s.phone as sender_phone,
-        r.name as recipient_name, r.phone as recipient_phone,
+        r.name as recipient_name, r.phone as recipient_phone, r.email as recipient_email,
         t.start_address, t.end_address, t.trip_date
       FROM pings p
         JOIN users s ON s.id=p.sender_id
@@ -71,6 +90,23 @@ router.post('/', auth, async (req, res, next) => {
       ? `${ping.sender_name} wants to meet up on their trip ${route}: "${message}" — Reply at https://routemates.onrender.com`
       : `${ping.sender_name} wants to be RouteMates on their trip: ${route}. Reply at https://routemates.onrender.com`;
 
+    const emailHtml = `
+      <div style="font-family:-apple-system,sans-serif;max-width:480px;margin:0 auto;padding:24px">
+        <h2 style="color:#F97316;margin:0 0 4px">🏓 You got a ping!</h2>
+        <p style="color:#6B7280;margin:0 0 20px;font-size:15px"><strong>${ping.sender_name}</strong> wants to meet up on their trip.</p>
+        <div style="background:#F3F4F6;border-radius:12px;padding:16px;margin-bottom:20px">
+          <div style="font-size:14px;color:#374151;font-weight:600">Route</div>
+          <div style="font-size:16px;color:#111827;margin-top:4px">${route}</div>
+          ${message ? `
+          <div style="font-size:14px;color:#374151;font-weight:600;margin-top:12px">Note from ${ping.sender_name}</div>
+          <div style="font-size:15px;color:#111827;margin-top:4px;font-style:italic">"${message}"</div>` : ''}
+        </div>
+        <a href="https://routemates.onrender.com/trips" style="display:inline-block;background:#F97316;color:white;padding:12px 24px;border-radius:10px;text-decoration:none;font-weight:700;font-size:15px">
+          View &amp; Respond →
+        </a>
+        <p style="color:#9CA3AF;font-size:12px;margin-top:24px">You're receiving this because you're on RouteMates.</p>
+      </div>`;
+
     sendPushToUser(recipient_id, {
       title: `${ping.sender_name} wants to meet up! 🏓`,
       body: message || route,
@@ -78,6 +114,7 @@ router.post('/', auth, async (req, res, next) => {
     });
 
     sendSmsToUser(ping.recipient_phone, smsMsg);
+    sendEmail(ping.recipient_email, `${ping.sender_name} sent you a ping on RouteMates!`, emailHtml);
 
     res.json(ping);
   } catch (err) { next(err); }
