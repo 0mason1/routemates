@@ -7,6 +7,7 @@ import FriendsPage from './pages/FriendsPage';
 import AcceptInvitePage from './pages/AcceptInvitePage';
 import { useEffect, useState } from 'react';
 import { api } from './lib/api';
+import NotificationBell from './components/NotificationBell';
 
 function NavIcon({ path, label, icon }) {
   const location = useLocation();
@@ -147,6 +148,10 @@ function InnerAppWrapper() {
   return (
     <AuthContext.Provider value={auth}>
       <div className="app">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'white', borderBottom: '1px solid var(--gray-200)', flexShrink: 0 }}>
+          <span style={{ fontWeight: 800, fontSize: 18 }}>🚗 RouteMates</span>
+          <NotificationBell />
+        </div>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Routes>
             <Route path="/" element={<HomePage />} />

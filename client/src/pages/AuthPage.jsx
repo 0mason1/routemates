@@ -38,7 +38,7 @@ export default function AuthPage() {
         {mode === 'signup' && (
           <div className="field">
             <label>Your name</label>
-            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Mason McAfee" required />
+            <input value={form.name} onChange={e => set('name', e.target.value)} placeholder="Your full name" required />
           </div>
         )}
 
