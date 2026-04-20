@@ -80,14 +80,14 @@ export default function FriendsPage() {
       <div className="card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div>
-            <div style={{ fontWeight: 700, fontSize: 15 }}>Your current city</div>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>Your address</div>
             {user?.city && !showCityEdit && (
               <div style={{ fontSize: 14, color: 'var(--gray-400)', marginTop: 2 }}>{user.city}</div>
             )}
           </div>
           {!showCityEdit && (
             <button className="btn-ghost" style={{ fontSize: 13 }} onClick={() => setShowCityEdit(true)}>
-              {user?.city ? 'Update' : 'Set city'}
+              {user?.city ? 'Update' : 'Add address'}
             </button>
           )}
         </div>
