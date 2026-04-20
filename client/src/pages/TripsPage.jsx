@@ -112,7 +112,7 @@ export default function TripsPage() {
               <p>When friends ping you, they'll show up here</p>
             </div>
           ) : allPings.map(p => (
-            <PingCard key={p.id} ping={p} currentUserId={user?.id} onRespond={respond} />
+            <PingCard key={p.id} ping={p} currentUserId={user?.id} onRespond={respond} onDelete={id => setPings(ps => ps.filter(p => p.id !== id))} />
           ))}
         </div>
       )}
@@ -120,8 +120,12 @@ export default function TripsPage() {
   );
 }
 
-function PingCard({ ping: p, currentUserId, onRespond }) {
+function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
   const [showChat, setShowChat] = useState(false);
+
+  async function handleDelete() {
+    try { await api.deletePing(p.id); onDelete(p.id); } catch {}
+  }
 
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -137,9 +141,11 @@ function PingCard({ ping: p, currentUserId, onRespond }) {
           </div>
           <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>{formatDate(p.trip_date)}</div>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--gray-400)', whiteSpace: 'nowrap', marginTop: 2 }}>
-          {p.direction === 'received' ? 'Received' : 'Sent'}
-        </span>
+        <button onClick={handleDelete} title="Delete ping" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--gray-300)', padding: 4, flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14H6L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4h6v2" />
+          </svg>
+        </button>
       </div>
 
       {p.message && (

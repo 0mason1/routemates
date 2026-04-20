@@ -37,6 +37,7 @@ export const api = {
   getInbox: () => request('/pings/inbox'),
   getSent: () => request('/pings/sent'),
   respondPing: (id, status) => request(`/pings/${id}/respond`, { method: 'PUT', body: JSON.stringify({ status }) }),
+  deletePing: (id) => request(`/pings/${id}`, { method: 'DELETE' }),
   getPingMessages: (id) => request(`/pings/${id}/messages`),
   sendPingMessage: (id, message) => request(`/pings/${id}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
 };

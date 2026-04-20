@@ -170,6 +170,15 @@ router.put('/:id/respond', auth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+router.delete('/:id', auth, async (req, res, next) => {
+  try {
+    const ping = (await query('SELECT * FROM pings WHERE id=$1 AND (sender_id=$2 OR recipient_id=$2)', [req.params.id, req.user.id])).rows[0];
+    if (!ping) return res.status(404).json({ error: 'Ping not found' });
+    await query('DELETE FROM pings WHERE id=$1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 router.get('/:id/messages', auth, async (req, res, next) => {
   try {
     const ping = (await query('SELECT * FROM pings WHERE id=$1 AND (sender_id=$2 OR recipient_id=$2)', [req.params.id, req.user.id])).rows[0];
