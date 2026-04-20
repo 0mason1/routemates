@@ -98,12 +98,28 @@ export default function HomePage() {
   }
 
   const canPlan = start.lat && end.lat && date;
+  const hasAnything = start.text || end.text || date || routeCoords || nearby;
+
+  function clearAll() {
+    const empty = { text: '', lat: null, lng: null };
+    setStart(empty); setEnd(empty); setDate('');
+    setRouteCoords(null); setNearby(null); setTrip(null);
+    setSentPings([]); setRadius(20);
+    ['rm_hp_start','rm_hp_end','rm_hp_date','rm_hp_route','rm_hp_nearby','rm_hp_trip','rm_hp_radius'].forEach(k => localStorage.removeItem(k));
+  }
 
   return (
     <div className="page" style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div>
-        <h1 className="section-header">Where are you driving?</h1>
-        <p className="section-sub">Find friends along your route</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 className="section-header">Where are you driving?</h1>
+          <p className="section-sub">Find friends along your route</p>
+        </div>
+        {hasAnything && (
+          <button onClick={clearAll} style={{ background: 'none', border: '1.5px solid var(--gray-200)', borderRadius: 99, padding: '6px 14px', fontSize: 13, fontWeight: 700, color: 'var(--gray-500)', cursor: 'pointer', flexShrink: 0 }}>
+            Clear
+          </button>
+        )}
       </div>
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
