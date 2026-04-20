@@ -194,15 +194,20 @@ export default function HomePage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {nearby.map(f => {
-                    const pinged = sentPings.some(p => p.recipient_id === f.id);
+                    const pendingCount = sentPings.filter(p => p.recipient_id === f.id && p.status === 'pending').length;
+                    const maxed = pendingCount >= 3;
                     return (
                       <div key={f.id} className="card" style={{ padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 16 }}>{f.name}</div>
                           <div style={{ fontSize: 13, color: 'var(--gray-400)', marginTop: 2 }}>{f.city} · {f.distance_miles} mi off route</div>
                         </div>
-                        {pinged ? (
-                          <span style={{ fontSize: 13, color: 'var(--gray-400)', fontStyle: 'italic' }}>Pinged ✓</span>
+                        {maxed ? (
+                          <span style={{ fontSize: 12, color: 'var(--gray-400)', fontStyle: 'italic', textAlign: 'right' }}>3/3 pings sent</span>
+                        ) : pendingCount > 0 ? (
+                          <button className="btn-secondary" onClick={() => openPingModal(f)}>
+                            Ping ({pendingCount}/3)
+                          </button>
                         ) : (
                           <button className="btn-secondary" onClick={() => openPingModal(f)}>Ping</button>
                         )}

@@ -68,7 +68,10 @@ router.post('/', auth, async (req, res, next) => {
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
     const existing = (await query('SELECT id FROM pings WHERE trip_id=$1 AND sender_id=$2 AND recipient_id=$3 AND status=$4', [trip_id, req.user.id, recipient_id, 'pending'])).rows[0];
-    if (existing) return res.status(409).json({ error: 'Ping already sent' });
+    if (existing) return res.status(409).json({ error: 'Ping already sent for this trip' });
+
+    const pendingCount = parseInt((await query('SELECT COUNT(*) FROM pings WHERE sender_id=$1 AND recipient_id=$2 AND status=$3', [req.user.id, recipient_id, 'pending'])).rows[0].count);
+    if (pendingCount >= 3) return res.status(429).json({ error: 'You\'ve sent 3 unanswered pings. Wait for them to respond first.' });
 
     const id = uuidv4();
     await query('INSERT INTO pings (id,trip_id,sender_id,recipient_id,message) VALUES ($1,$2,$3,$4,$5)', [id, trip_id, req.user.id, recipient_id, message || null]);
