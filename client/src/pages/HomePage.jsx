@@ -24,6 +24,7 @@ export default function HomePage() {
   const [sentPings, setSentPings] = useState([]);
   const [trip, setTrip] = useState(() => load('rm_hp_trip', null));
   const [loading, setLoading] = useState(false);
+  const [nextTrip, setNextTrip] = useState(null);
   const [pingModal, setPingModal] = useState(null);
   const [pingNote, setPingNote] = useState('');
   const [pingSending, setPingSending] = useState(false);
@@ -41,6 +42,10 @@ export default function HomePage() {
 
   useEffect(() => {
     api.getSent().then(setSentPings).catch(() => {});
+    api.getTrips().then(trips => {
+      const upcoming = trips.filter(t => new Date(t.trip_date + 'T23:59:59') >= new Date());
+      if (upcoming.length > 0) setNextTrip(upcoming[0]);
+    }).catch(() => {});
   }, []);
 
   async function planTrip() {
@@ -158,6 +163,29 @@ export default function HomePage() {
           </button>
         )}
       </div>
+
+      {nextTrip && !trip && (
+        <div style={{
+          background: 'linear-gradient(135deg, #FFF7ED 0%, #FEF3C7 100%)',
+          border: '1.5px solid var(--orange-light)',
+          borderRadius: 16, padding: '14px 16px',
+          display: 'flex', alignItems: 'center', gap: 14,
+        }}>
+          <div style={{ fontSize: 32 }}>🚗</div>
+          <div style={{ flex: 1, overflow: 'hidden' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--orange)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>Next trip</div>
+            <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--gray-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {nextTrip.start_address.split(',')[0]} → {nextTrip.end_address.split(',')[0]}
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--gray-500)', marginTop: 2 }}>
+              {(() => {
+                const diff = Math.round((new Date(nextTrip.trip_date + 'T00:00:00') - new Date().setHours(0,0,0,0)) / 86400000);
+                return diff === 0 ? '🟢 Today' : diff === 1 ? '📅 Tomorrow' : `📅 In ${diff} days`;
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <AddressInput

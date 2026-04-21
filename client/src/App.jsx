@@ -18,7 +18,9 @@ function NavIcon({ path, label, icon }) {
   const active = location.pathname === path;
   return (
     <button className={`nav-btn${active ? ' active' : ''}`} onClick={() => navigate(path)}>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">{icon}</svg>
+      <div className="nav-pill">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">{icon}</svg>
+      </div>
       {label}
     </button>
   );
@@ -176,10 +178,21 @@ function InnerAppWrapper() {
     <AuthContext.Provider value={auth}>
       <div className="app">
         {showOnboarding && <Onboarding onDone={finishOnboarding} />}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: 'white', borderBottom: '1px solid var(--gray-200)', flexShrink: 0 }}>
-          <span style={{ fontWeight: 800, fontSize: 18 }}>🚗 RouteMates</span>
-          <NotificationBell />
-        </div>
+        <header className="app-header">
+          <span className="app-logo">RouteMates</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NotificationBell />
+            <div style={{
+              width: 34, height: 34, borderRadius: '50%',
+              background: 'linear-gradient(135deg, var(--orange), var(--amber))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'white', fontWeight: 800, fontSize: 13, flexShrink: 0,
+              boxShadow: '0 2px 8px rgba(249,115,22,0.35)',
+            }}>
+              {auth.user?.name?.[0]?.toUpperCase() || '?'}
+            </div>
+          </div>
+        </header>
         <div style={{ flex: 1, overflowY: 'auto' }}>
           <Routes>
             <Route path="/" element={<HomePage />} />

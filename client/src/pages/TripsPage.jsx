@@ -3,6 +3,7 @@ import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
 import LiveLocationMap from '../components/LiveLocationMap';
+import { getTripWeather } from '../lib/weather';
 
 function formatDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -83,7 +84,26 @@ export default function TripsPage() {
 
   return (
     <div className="page" style={{ padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h1 className="section-header">My Trips</h1>
+      <div>
+        <h1 className="section-header">My Trips</h1>
+        {(trips.length > 0 || pings.length > 0) && (
+          <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span style={{ fontSize: 15 }}>🗺️</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-600)' }}>{trips.length} trip{trips.length !== 1 ? 's' : ''}</span>
+            </div>
+            {(() => {
+              const meetups = pings.filter(p => p.status === 'yes').length;
+              return meetups > 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ fontSize: 15 }}>🤝</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-600)' }}>{meetups} meetup{meetups !== 1 ? 's' : ''}</span>
+                </div>
+              ) : null;
+            })()}
+          </div>
+        )}
+      </div>
 
       <div style={{ display: 'flex', gap: 8, background: 'var(--gray-100)', borderRadius: 12, padding: 4 }}>
         {['upcoming', 'past', 'pings'].map(t => (
@@ -527,6 +547,14 @@ function daysUntil(dateStr) {
 
 function TripCard({ trip, past, onShare, onDelete }) {
   const [deleted, setDeleted] = useState(false);
+  const [weather, setWeather] = useState(null);
+
+  useEffect(() => {
+    if (!past && trip.start_lat) {
+      getTripWeather(trip.start_lat, trip.start_lng, trip.trip_date)
+        .then(setWeather).catch(() => {});
+    }
+  }, [trip.id]);
 
   async function handleDelete() {
     if (!window.confirm('Cancel this trip?')) return;
@@ -550,7 +578,7 @@ function TripCard({ trip, past, onShare, onDelete }) {
       <div style={{ padding: '16px 16px 14px' }}>
         {/* Date row */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <div style={{
               background: past ? 'var(--gray-100)' : '#FFF7ED',
               border: `1.5px solid ${past ? 'var(--gray-200)' : 'var(--orange-light)'}`,
@@ -563,6 +591,11 @@ function TripCard({ trip, past, onShare, onDelete }) {
             {until && (
               <span style={{ fontSize: 12, fontWeight: 700, color: until === 'Today' ? '#16A34A' : until === 'Tomorrow' ? 'var(--orange)' : 'var(--gray-400)' }}>
                 {until}
+              </span>
+            )}
+            {weather && (
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--gray-500)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                {weather.icon} {weather.temp}°F
               </span>
             )}
           </div>
