@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AddressInput from '../components/AddressInput';
 import RouteMap from '../components/RouteMap';
-import { getRoute } from '../lib/mapbox';
+import { getRoute, closestPointOnRoute, getMeetingPlaces } from '../lib/mapbox';
 import { api } from '../lib/api';
 import { useToast } from '../hooks/useToast';
 import { useAuth } from '../hooks/useAuth';
@@ -27,6 +27,8 @@ export default function HomePage() {
   const [pingModal, setPingModal] = useState(null);
   const [pingNote, setPingNote] = useState('');
   const [pingSending, setPingSending] = useState(false);
+  const [meetingSpots, setMeetingSpots] = useState([]);
+  const [spotsLoading, setSpotsLoading] = useState(false);
 
   useEffect(() => { localStorage.setItem('rm_hp_start', JSON.stringify(start)); }, [start]);
   useEffect(() => { localStorage.setItem('rm_hp_end', JSON.stringify(end)); }, [end]);
@@ -84,10 +86,25 @@ export default function HomePage() {
     } catch {}
   }
 
-  function openPingModal(friend) {
+  async function openPingModal(friend) {
     if (!trip) return;
     setPingModal(friend);
     setPingNote('');
+    setMeetingSpots([]);
+
+    if (routeCoords && friend.city_lat && friend.city_lng) {
+      setSpotsLoading(true);
+      try {
+        const [closeLng, closeLat] = closestPointOnRoute(
+          parseFloat(friend.city_lat), parseFloat(friend.city_lng), routeCoords
+        );
+        const meetLat = (closeLat + parseFloat(friend.city_lat)) / 2;
+        const meetLng = (closeLng + parseFloat(friend.city_lng)) / 2;
+        const spots = await getMeetingPlaces(meetLat, meetLng);
+        setMeetingSpots(spots);
+      } catch {}
+      setSpotsLoading(false);
+    }
   }
 
   async function sendPing() {
@@ -270,6 +287,45 @@ export default function HomePage() {
             <div style={{ fontSize: 13, color: 'var(--gray-400)', marginBottom: 16 }}>
               {trip?.start_address?.split(',')[0]} → {trip?.end_address?.split(',')[0]}
             </div>
+
+            {/* Meeting spots */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-800)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                📍 Meetup spots near your route
+                <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--gray-400)' }}>midway to {pingModal.name.split(' ')[0]}</span>
+              </div>
+              {spotsLoading ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--gray-400)', fontSize: 13 }}>
+                  <span className="spinner" style={{ width: 14, height: 14, borderWidth: 2, borderColor: 'rgba(249,115,22,0.2)', borderTopColor: 'var(--orange)' }} />
+                  Finding nearby spots…
+                </div>
+              ) : meetingSpots.length === 0 ? (
+                <div style={{ fontSize: 13, color: 'var(--gray-400)' }}>No spots found nearby</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 200, overflowY: 'auto' }}>
+                  {meetingSpots.map((s, i) => {
+                    const emoji = { restaurant: '🍽️', fast_food: '🍔', cafe: '☕', fuel: '⛽', bar: '🍺' }[s.type] || '📌';
+                    const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.name)}&center=${s.lat},${s.lng}`;
+                    return (
+                      <a key={i} href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--gray-100)', borderRadius: 10, padding: '10px 12px', textDecoration: 'none' }}>
+                        <span style={{ fontSize: 18, flexShrink: 0 }}>{emoji}</span>
+                        <div style={{ flex: 1, overflow: 'hidden' }}>
+                          <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gray-800)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--gray-400)', marginTop: 1, textTransform: 'capitalize' }}>
+                            {s.type.replace('_', ' ')}{s.cuisine ? ` · ${s.cuisine.split(';')[0]}` : ''}
+                          </div>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--gray-400)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                        </svg>
+                      </a>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
             <div className="field">
               <label>Add a note (optional)</label>
               <textarea
