@@ -14,6 +14,7 @@ app.use('/api/trips', require('./routes/trips'));
 app.use('/api/pings', require('./routes/pings'));
 app.use('/api/push', require('./routes/push'));
 app.use('/api/messages', require('./routes/messages'));
+app.use('/api/locations', require('./routes/locations'));
 
 app.get('/api/health', (_, res) => res.json({ ok: true, jwt: !!process.env.JWT_SECRET }));
 

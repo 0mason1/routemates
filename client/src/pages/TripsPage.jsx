@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback } from 'react';
 import { api } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../hooks/useToast';
+import LiveLocationMap from '../components/LiveLocationMap';
 
 function formatDate(d) {
   return new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -189,8 +190,54 @@ function SwipeToDismiss({ onDismiss, children }) {
 function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
   const [showChat, setShowChat] = useState(false);
   const [changingResponse, setChangingResponse] = useState(false);
+  const [sharingLocation, setSharingLocation] = useState(false);
+  const [liveLocations, setLiveLocations] = useState([]);
+  const watchIdRef = useRef(null);
+  const locationPollRef = useRef(null);
+
+  // Poll for live locations whenever ping is accepted
+  useEffect(() => {
+    if (p.status !== 'yes') return;
+    const fetch = () => api.getLiveLocations(p.id).then(setLiveLocations).catch(() => {});
+    fetch();
+    locationPollRef.current = setInterval(fetch, 3000);
+    return () => clearInterval(locationPollRef.current);
+  }, [p.id, p.status]);
+
+  // Stop sharing + cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        api.stopSharingLocation(p.id).catch(() => {});
+      }
+    };
+  }, [p.id]);
+
+  function toggleLocation() {
+    if (sharingLocation) {
+      setSharingLocation(false);
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      api.stopSharingLocation(p.id).catch(() => {});
+    } else {
+      if (!navigator.geolocation) return;
+      setSharingLocation(true);
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        pos => { api.updateLocation(p.id, pos.coords.latitude, pos.coords.longitude).catch(() => {}); },
+        () => { setSharingLocation(false); },
+        { enableHighAccuracy: true, maximumAge: 5000, timeout: 15000 }
+      );
+    }
+  }
 
   async function handleDelete() {
+    if (watchIdRef.current != null) {
+      navigator.geolocation.clearWatch(watchIdRef.current);
+      api.stopSharingLocation(p.id).catch(() => {});
+    }
     try { await api.deletePing(p.id); onDelete(p.id); } catch {}
   }
 
@@ -260,6 +307,29 @@ function PingCard({ ping: p, currentUserId, onRespond, onDelete }) {
 
       {p.status === 'yes' && (
         <NavigateButtons ping={p} />
+      )}
+
+      {p.status === 'yes' && (
+        <div style={{ borderTop: '1px solid var(--gray-100)', paddingTop: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: liveLocations.length > 0 ? 8 : 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--gray-700)' }}>
+              📍 Live location
+            </span>
+            <button onClick={toggleLocation} style={{
+              padding: '6px 14px', borderRadius: 99, fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+              background: sharingLocation ? '#FEE2E2' : '#F0FDF4',
+              color: sharingLocation ? '#DC2626' : '#16A34A',
+            }}>
+              {sharingLocation ? 'Stop sharing' : 'Share my location'}
+            </button>
+          </div>
+          {liveLocations.length > 0
+            ? <LiveLocationMap locations={liveLocations} myUserId={currentUserId} />
+            : <p style={{ fontSize: 12, color: 'var(--gray-400)', margin: 0 }}>
+                {sharingLocation ? 'Waiting for the other person to share too…' : 'Tap to share your location with each other'}
+              </p>
+          }
+        </div>
       )}
 
       {p.direction === 'sent' && p.seen_at && (

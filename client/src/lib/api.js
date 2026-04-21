@@ -48,4 +48,8 @@ export const api = {
   deletePing: (id) => request(`/pings/${id}`, { method: 'DELETE' }),
   getPingMessages: (id) => request(`/pings/${id}/messages`),
   sendPingMessage: (id, message) => request(`/pings/${id}/messages`, { method: 'POST', body: JSON.stringify({ message }) }),
+
+  updateLocation: (pingId, lat, lng) => request(`/locations/${pingId}`, { method: 'POST', body: JSON.stringify({ lat, lng }) }),
+  stopSharingLocation: (pingId) => request(`/locations/${pingId}`, { method: 'DELETE' }),
+  getLiveLocations: (pingId) => request(`/locations/${pingId}`),
 };
